@@ -58,7 +58,7 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
 
     // ImageView for initialization instructions
     private ImageView ivInit;
-    private VinsJNI mVinsJNI;
+    private ov2slamJNI mVinsJNI;
 
     private float virtualCamDistance = 4;
     private final float minVirtualCamDistance = 4;
@@ -149,7 +149,7 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
     protected void onResume() {
         super.onResume();
 
-        if (mVinsJNI == null) mVinsJNI = new VinsJNI();
+        if (mVinsJNI == null) mVinsJNI = new ov2slamJNI();
         mVinsJNI.init();
     }
 

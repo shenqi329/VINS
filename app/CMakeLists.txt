@@ -5,11 +5,16 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 
+SET(CMAKE_BUILD_TYPE Release)
+
+#SET(CMAKE_BUILD_TYPE Debug)
+add_definitions(-std=c++11)
 
 set(LIB_NAME NativeLib)
 set(
     ${LIB_NAME}_SRCS
     src/main/cpp/jni/nativelib.cpp
+    src/main/cpp/jni/ov2slamlib.cpp
 )
 
 add_subdirectory(libs/VINS-Mobile-master)
@@ -51,9 +56,11 @@ target_link_libraries(
 
     # VINSMobile
 
-    msckf_mono
+    # msckf_mono
 
-    VINS_Android
+    ov2slam
+
+#    VINS_Android
 
     log
     # Links the target library to the log library

@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.4.1)
 
 set(msckf_mono_SRCS
         src/corner_detector.cpp
-        src/ros_interface.cpp
         )
 
 
@@ -18,7 +17,6 @@ target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(
         ${TARGET_NAME}
         fast
-        boost_LIB
         eigen_LIB
         ${OpenCV_LIBS}
 )

@@ -1,6 +1,14 @@
 #ifndef MSCKF_MONO_ROS_INTERFACE_H_
 #define MSCKF_MONO_ROS_INTERFACE_H_
 
+#include <ros/ros.h>
+
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/Image.h>
+#include <nav_msgs/Odometry.h>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+
 #include <msckf_mono/types.h>
 #include <msckf_mono/msckf.h>
 #include <msckf_mono/corner_detector.h>
@@ -12,13 +20,25 @@ namespace msckf_mono
     public:
       EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-      RosInterface();
+      RosInterface(ros::NodeHandle nh);
 
-      void imuCallback();
+      void imuCallback(const sensor_msgs::ImuConstPtr& imu);
 
-      void imageCallback();
+      void imageCallback(const sensor_msgs::ImageConstPtr& msg);
+
+      void publish_core(const ros::Time& publish_time);
+
+      void publish_extra(const ros::Time& publish_time);
 
     private:
+      ros::NodeHandle nh_;
+      image_transport::ImageTransport it_;
+
+      image_transport::Subscriber image_sub_;
+      image_transport::Publisher track_image_pub_;
+      ros::Publisher odom_pub_;
+
+      ros::Subscriber imu_sub_;
 
       void load_parameters();
 
