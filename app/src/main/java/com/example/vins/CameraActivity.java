@@ -5,12 +5,12 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.opengl.GLES11Ext;
-import android.opengl.GLSurfaceView;
 import android.os.Bundle;
-import android.os.Environment;
-import android.view.Surface;
-import android.view.TextureView;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import android.util.Log;
+import android.util.Size;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
@@ -26,23 +26,25 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL10;
-
-import static android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY;
+import static com.jscheng.scamera.util.LogUtil.TAG;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.jscheng.scamera.util.CameraUtil;
+import com.jscheng.scamera.util.PermisstionUtil;
+import com.jscheng.scamera.widget.CameraGLSurfaceView;
+
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
 
-public class CameraActivity extends Activity implements TextureView.SurfaceTextureListener {
-    private Camera mCamera;
-    private GLSurfaceView mGLSurfaceView;
-    private SurfaceTexture mSurfaceTexture;
-    private String mPath;
+public class CameraActivity extends Activity implements Camera.PreviewCallback, CameraGLSurfaceView.CameraGLSurfaceViewCallback {
+    
+    private final static int REQUEST_CODE = 1;
+    private final static int MSG_START_PREVIEW = 1;
+
+    private CameraGLSurfaceView mCameraView;
 
     private final int imageWidth = 640;
     private final int imageHeight = 480;
@@ -63,34 +65,21 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
     private ImageView ivInit;
     private ov2slamJNI mVinsJNI;
 
+    long preImageTimeStamp = -1;
+
     private float virtualCamDistance = 4;
     private final float minVirtualCamDistance = 4;
     private final float maxVirtualCamDistance = 40;
-    private Surface mSurface;
-    private MyRender mRenderer;
     private long mLastExitTime;
 
-    long preImageTimeStamp;
-
+    private Size mPreviewSize;
+    private Handler mCameraHanlder;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
 
-        // first make sure the necessary permissions are given
-        checkPermissionsIfNeccessary();
-
-//        mPath = Environment.getExternalStorageDirectory() + File.separator + "VINS" + File.separator + "img_imu_data";
-//        File file = new File(mPath);
-//        if (!file.exists()) file.mkdirs();
-//
-//        File file1 = new File(Environment.getExternalStorageDirectory() + File.separator + "VINS" +
-//                File.separator + "brief_k10L6.bin");
-//        File file2 = new File(Environment.getExternalStorageDirectory() + File.separator + "VINS" +
-//                File.separator + "brief_pattern.yml");
-//
-//        if (!file1.exists()) copyFile(file1);
-//        if (!file2.exists()) copyFile(file2);
+        initCameraHandler();
 
         double[][] R = new double[3][3];
         double[] T = new double[3];
@@ -117,6 +106,18 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
         initViews();
     }
 
+    public void startPreview() {
+        if(mPreviewSize != null && requestPermission()) {
+            if (CameraUtil.getCamera() == null) {
+                CameraUtil.openCamera();
+                Log.e(TAG, "openCamera" );
+                CameraUtil.setDisplay(mCameraView.getSurfaceTexture());
+                CameraUtil.setPreviewCallback(this);
+            }
+            CameraUtil.startPreview(this, imageWidth, imageHeight);
+        }
+    }
+
     private void initViews() {
         tvX = (TextView) findViewById(R.id.x_Label);
         tvY = (TextView) findViewById(R.id.y_Label);
@@ -129,13 +130,8 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
         ivInit = (ImageView) findViewById(R.id.init_image_view);
         ivInit.setVisibility(View.VISIBLE);
 
-        mGLSurfaceView = (GLSurfaceView) findViewById(R.id.texture_view);
-        mRenderer = new MyRender();
-        mGLSurfaceView.setRenderer(mRenderer);
-        mGLSurfaceView.setRenderMode(RENDERMODE_WHEN_DIRTY);
-
-        TextureView textureView = (TextureView) findViewById(R.id.surface_view);
-        textureView.setSurfaceTextureListener(this);
+        mCameraView = (CameraGLSurfaceView) findViewById(R.id.gl_texture_view);
+        mCameraView.setCallback(this);
 
 
         // Define the Switch listeners
@@ -172,9 +168,27 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
         });
     }
 
+    private void initCameraHandler() {
+        mCameraHanlder = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case MSG_START_PREVIEW:
+                        startPreview();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        };
+    }
+
+
     @Override
     protected void onResume() {
         super.onResume();
+
+        startPreview();
 
         if (mVinsJNI == null) mVinsJNI = new ov2slamJNI();
         mVinsJNI.init();
@@ -204,27 +218,6 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
         }
     }
 
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-        mSurface = new Surface(surface);
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-        return false;
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
-    }
-
     @Override
     public void onBackPressed() {
         super.onBackPressed();
@@ -240,79 +233,16 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
         mLastExitTime = time;
     }
 
-    public class MyRender implements GLSurfaceView.Renderer, Camera.PreviewCallback, SurfaceTexture.OnFrameAvailableListener {
+    @Override
+    public void onSurfaceViewCreate(SurfaceTexture texture) {
 
-        @Override
-        public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-            mSurfaceTexture = new SurfaceTexture(GLES11Ext.GL_SAMPLER_EXTERNAL_OES);
+    }
 
-            mCamera = Camera.open();
-            if (mCamera != null) {
-//            mCamera.setDisplayOrientation(90);
-                Camera.Parameters parameters = mCamera.getParameters();
-                parameters.setPreviewFrameRate(30);
-                parameters.setPreviewSize(imageWidth, imageHeight);
-                mCamera.setParameters(parameters);
-
-                try {
-                    mCamera.setPreviewTexture(mSurfaceTexture);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                mCamera.setPreviewCallback(this);
-                mCamera.startPreview();
-
-            }
-
-            mSurfaceTexture.setOnFrameAvailableListener(this);
-        }
-
-        @Override
-        public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-            mGLSurfaceView.requestRender();
-        }
-
-        @Override
-        public void onSurfaceChanged(GL10 gl, int width, int height) {
-        }
-
-
-        @Override
-        public void onDrawFrame(GL10 gl) {
-            mSurfaceTexture.updateTexImage();
-        }
-
-        @Override
-        public void onPreviewFrame(byte[] data, Camera camera) {
-
-            // pass the current device's screen orientation to the c++ part
-            int currentRotation = getWindowManager().getDefaultDisplay().getRotation();
-            boolean isScreenRotated = currentRotation != Surface.ROTATION_90;
-
-            // 避免两张图相同的时间戳
-            mSurfaceTexture.getTimestamp();
-            long curImageTimeStamp = mSurfaceTexture.getTimestamp();
-            if (preImageTimeStamp > 0) {
-                long cost = curImageTimeStamp - preImageTimeStamp;
-                if (curImageTimeStamp - preImageTimeStamp < 30*1000*1000) {
-                    curImageTimeStamp = preImageTimeStamp + 30*1000*1000;
-                }
-            }
-            preImageTimeStamp = curImageTimeStamp;
-
-            if (mSurface != null) mVinsJNI.onImageAvailable(imageWidth, imageHeight,
-                    0, null,
-                    0, null, null,
-                    mSurface, curImageTimeStamp, isScreenRotated,
-                    virtualCamDistance, data, true);
-
-            // run the updateViewInfo function on the UI Thread so it has permission to modify it
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    mVinsJNI.updateViewInfo(tvX, tvY, tvZ, tvTotal, tvLoop, tvFeature, tvBuf, ivInit);
-                }
-            });
-        }
+    @Override
+    public void onSurfaceViewChange(int width, int height) {
+        Log.e(TAG, "surfaceChanged: ( " + width +" x " + height +" )");
+        mPreviewSize = new Size(width, height);
+        mCameraHanlder.sendEmptyMessage(MSG_START_PREVIEW);
     }
 
     /**
@@ -342,23 +272,47 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String permissions[],
-                                           @NonNull int[] grantResults) {
+    public void onPreviewFrame(byte[] data, Camera camera) {
 
-        if(requestCode == PERMISSIONS_REQUEST_CODE) {
-            boolean hasAllPermissions = true;
-            // If request is cancelled, the result arrays are empty.
-            if (grantResults.length == 0)
-                hasAllPermissions = false;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED)
-                    hasAllPermissions = false;
-            }
+        // pass the current device's screen orientation to the c++ part
+        int currentRotation = getWindowManager().getDefaultDisplay().getRotation();
+        boolean isScreenRotated = true;
 
-            if(!hasAllPermissions){
-                finish();
+        // 避免两张图相同的时间戳
+        mCameraView.getSurfaceTexture().getTimestamp();
+        long curImageTimeStamp = mCameraView.getSurfaceTexture().getTimestamp();
+        if (preImageTimeStamp > 0) {
+            long cost = curImageTimeStamp - preImageTimeStamp;
+            if (curImageTimeStamp - preImageTimeStamp < 30*1000*1000) {
+                curImageTimeStamp = preImageTimeStamp + 30*1000*1000;
             }
+        }
+        preImageTimeStamp = curImageTimeStamp;
+
+        mVinsJNI.onImageAvailable(imageWidth, imageHeight,
+                0, null,
+                0, null, null,
+                null, curImageTimeStamp, isScreenRotated,
+                virtualCamDistance, data, true);
+
+        // run the updateViewInfo function on the UI Thread so it has permission to modify it
+        runOnUiThread(new Runnable() {
+            public void run() {
+                mVinsJNI.updateViewInfo(tvX, tvY, tvZ, tvTotal, tvLoop, tvFeature, tvBuf, ivInit);
+            }
+        });
+    }
+
+    private boolean requestPermission() {
+        return PermisstionUtil.checkPermissionsAndRequest(this, PermisstionUtil.CAMERA, REQUEST_CODE, "请求相机权限被拒绝")
+                && PermisstionUtil.checkPermissionsAndRequest(this, PermisstionUtil.STORAGE, REQUEST_CODE, "请求访问SD卡权限被拒绝");
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == requestCode ) {
+            mCameraHanlder.sendEmptyMessage(MSG_START_PREVIEW);
         }
     }
 }

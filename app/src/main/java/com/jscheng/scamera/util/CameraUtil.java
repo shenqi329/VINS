@@ -71,6 +71,12 @@ public class CameraUtil {
         return mCameraID == Camera.CameraInfo.CAMERA_FACING_BACK;
     }
 
+    public static void setPreviewCallback(Camera.PreviewCallback cb) {
+
+        mCamera.setPreviewCallback(cb);
+
+    }
+
     public static void setDisplay(SurfaceTexture surfaceTexture) {
         try {
             if (mCamera != null) {

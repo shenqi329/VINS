@@ -165,37 +165,37 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
         return;
     }
 
-    cv::Mat mYuv(height + height / 2, width, CV_8UC1, srcLumaPtr);
-
-    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
-
-    ANativeWindow_acquire(win);
-    ANativeWindow_Buffer buf;
-
     int rotatedWidth = height; // 480
     int rotatedHeight = width; // 640
 
-    if(isScreenRotated) {
-        ANativeWindow_setBuffersGeometry(win, height, width, 0);
-    } else {
-        ANativeWindow_setBuffersGeometry(win, width, height, 0);
-    }
+    cv::Mat mYuv(height + height / 2, width, CV_8UC1, srcLumaPtr);
 
-    if (int32_t err = ANativeWindow_lock(win, &buf, NULL)) {
-        LOGE("ANativeWindow_lock failed with error code %d\n", err);
-        ANativeWindow_release(win);
-        return;
-    }
+//    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
+//
+//    ANativeWindow_acquire(win);
+//    ANativeWindow_Buffer buf;
+
+//    if(isScreenRotated) {
+//        ANativeWindow_setBuffersGeometry(win, height, width, 0);
+//    } else {
+//        ANativeWindow_setBuffersGeometry(win, width, height, 0);
+//    }
+
+//    if (int32_t err = ANativeWindow_lock(win, &buf, NULL)) {
+//        LOGE("ANativeWindow_lock failed with error code %d\n", err);
+//        ANativeWindow_release(win);
+//        return;
+//    }
 
 //    LOGI("buf.stride: %d", buf.stride);
 
-    uint8_t *dstPtr = reinterpret_cast<uint8_t *>(buf.bits);
-    cv::Mat dstRgba;
-    if(isScreenRotated) {
-        dstRgba = cv::Mat(width, buf.stride, CV_8UC4, dstPtr); // TextureView buffer, use stride as width
-    } else {
-        dstRgba = cv::Mat(height, buf.stride, CV_8UC4, dstPtr); // TextureView buffer, use stride as width
-    }
+//    uint8_t *dstPtr = reinterpret_cast<uint8_t *>(buf.bits);
+//    cv::Mat dstRgba;
+//    if(isScreenRotated) {
+//        dstRgba = cv::Mat(width, buf.stride, CV_8UC4, dstPtr); // TextureView buffer, use stride as width
+//    } else {
+//        dstRgba = cv::Mat(height, buf.stride, CV_8UC4, dstPtr); // TextureView buffer, use stride as width
+//    }
     cv::Mat srcRgba(height, width, CV_8UC4);
     cv::Mat rotatedRgba(rotatedHeight, rotatedWidth, CV_8UC4);
 
@@ -214,26 +214,27 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
     cv::cvtColor(rotatedRgba, rotatedMono, cv::COLOR_RGBA2GRAY);
     slamManager->addNewMonoImage(timeStampSec, rotatedMono);
 
-    if (isScreenRotated) {
-        srcRgba = rotatedRgba.clone();
-    } else {
-        cv::rotate(rotatedRgba, srcRgba, cv::ROTATE_90_COUNTERCLOCKWISE);
-    }
-    // copy to TextureView surface
-    uchar *dbuf = dstRgba.data;
-    uchar *sbuf = srcRgba.data;
-    int i;
+//    if (isScreenRotated) {
+//        srcRgba = rotatedRgba.clone();
+//    } else {
+//        cv::rotate(rotatedRgba, srcRgba, cv::ROTATE_90_COUNTERCLOCKWISE);
+//    }
 
-
-    for (i = 0; i < srcRgba.rows; i++) {
-        dbuf = dstRgba.data + i * buf.stride * 4;
-        memcpy(dbuf, sbuf, srcRgba.cols * 4); //TODO: threw a SIGSEGV SEGV_ACCERR once
-        sbuf += srcRgba.cols * 4;
-    }
-    //TE(actual_onImageAvailable);
-
-    ANativeWindow_unlockAndPost(win);
-    ANativeWindow_release(win);
+//    // copy to TextureView surface
+//    uchar *dbuf = dstRgba.data;
+//    uchar *sbuf = srcRgba.data;
+//    int i;
+//
+//
+//    for (i = 0; i < srcRgba.rows; i++) {
+//        dbuf = dstRgba.data + i * buf.stride * 4;
+//        memcpy(dbuf, sbuf, srcRgba.cols * 4); //TODO: threw a SIGSEGV SEGV_ACCERR once
+//        sbuf += srcRgba.cols * 4;
+//    }
+//    //TE(actual_onImageAvailable);
+//
+//    ANativeWindow_unlockAndPost(win);
+//    ANativeWindow_release(win);
 
 }
 
