@@ -266,7 +266,7 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
                     0, null,
                     0, null, null,
                     mSurface, mSurfaceTexture.getTimestamp(), isScreenRotated,
-                    virtualCamDistance, data, false);
+                    virtualCamDistance, data, true);
 
             // run the updateViewInfo function on the UI Thread so it has permission to modify it
             runOnUiThread(new Runnable() {

@@ -21,7 +21,7 @@ class MyStreamBuf : public std::streambuf
 {
     enum
     {
-        BUFFER_SIZE = 256,
+        BUFFER_SIZE = 4096,
     };
 
 public:
@@ -117,11 +117,12 @@ Java_com_example_vins_ov2slamJNI_init(JNIEnv *env, jobject instance) {
     pthread_create(&pthread, NULL, reinterpret_cast<void *(*)(void *)>(slam_run), (void*)slamManager);
 }
 
-float timeStampToSec(long timeStamp) {
-
+double timeStampToSec(long timeStamp) {
     long us = timeStamp / 1000;
-    float ms = us / 1000.0;
-    return ms / 1000;
+    long ms = us / 1000;
+    long s = ms / 1000;
+    ms = ms % 1000;
+    return (double)s + (double)ms / 1000.f;
 }
 
 extern "C"
@@ -149,12 +150,14 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
     //const double timeStampOffset = 1.0 / 30.0 / 2.0 - 1.0 / 100.0 / 2.0;
     //timeStampSec += timeStampOffset;
 
-    //camera
-    jbyte *srcLumaPtr = env->GetByteArrayElements(byteArray,NULL);
-
-    //camrea2
-    //uint8_t *srcLumaPtr = reinterpret_cast<uint8_t *>(env->GetDirectBufferAddress(bufferY));
-
+    uint8_t *srcLumaPtr = nullptr;
+    if (isGetData) {
+        //camera
+        srcLumaPtr = reinterpret_cast<uint8_t *>(env->GetByteArrayElements(byteArray,NULL));
+    } else {
+        //camrea2
+        srcLumaPtr = reinterpret_cast<uint8_t *>(env->GetDirectBufferAddress(bufferY));
+    }
     if (srcLumaPtr == nullptr) {
         LOGE("blit NULL pointer ERROR");
         return;
