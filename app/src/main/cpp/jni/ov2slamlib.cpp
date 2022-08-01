@@ -143,6 +143,8 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
 
 //    LOGI("Received image with width: %d height: %d", width, height);
 
+    g_MyStreamBuf.pubsync();
+
     double timeStampSec = timeStampToSec(timeStamp);
     // IMU Meassurements are momentary meassurements.
     // Camera over an interval. so the mid of the interval is chosen as the timestamp

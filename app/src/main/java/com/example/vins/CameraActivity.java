@@ -35,6 +35,9 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.RealMatrix;
+
 public class CameraActivity extends Activity implements TextureView.SurfaceTextureListener {
     private Camera mCamera;
     private GLSurfaceView mGLSurfaceView;
@@ -67,6 +70,8 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
     private MyRender mRenderer;
     private long mLastExitTime;
 
+    long preImageTimeStamp;
+
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -86,6 +91,28 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
 //
 //        if (!file1.exists()) copyFile(file1);
 //        if (!file2.exists()) copyFile(file2);
+
+        double[][] R = new double[3][3];
+        double[] T = new double[3];
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                R[i][j] = 0;
+            }
+        }
+        R[0][0] = 1;
+        R[1][1] = 1;
+        R[2][2] = 1;
+
+        for (int i = 0; i < 3; i++) {
+            T[i] = 0;
+        }
+        T[2] = 5.0f;
+        RealMatrix rotation = new Array2DRowRealMatrix(R);
+        RealMatrix translation = new Array2DRowRealMatrix(T);
+
+        MatrixState.set_model_view_matrix(rotation, translation);
+        MatrixState.set_projection_matrix(428f, 429f, 240f, 320f, 480, 640, 0.01f, 100f);
 
         initViews();
     }
@@ -262,10 +289,21 @@ public class CameraActivity extends Activity implements TextureView.SurfaceTextu
             int currentRotation = getWindowManager().getDefaultDisplay().getRotation();
             boolean isScreenRotated = currentRotation != Surface.ROTATION_90;
 
+            // 避免两张图相同的时间戳
+            mSurfaceTexture.getTimestamp();
+            long curImageTimeStamp = mSurfaceTexture.getTimestamp();
+            if (preImageTimeStamp > 0) {
+                long cost = curImageTimeStamp - preImageTimeStamp;
+                if (curImageTimeStamp - preImageTimeStamp < 30*1000*1000) {
+                    curImageTimeStamp = preImageTimeStamp + 30*1000*1000;
+                }
+            }
+            preImageTimeStamp = curImageTimeStamp;
+
             if (mSurface != null) mVinsJNI.onImageAvailable(imageWidth, imageHeight,
                     0, null,
                     0, null, null,
-                    mSurface, mSurfaceTexture.getTimestamp(), isScreenRotated,
+                    mSurface, curImageTimeStamp, isScreenRotated,
                     virtualCamDistance, data, true);
 
             // run the updateViewInfo function on the UI Thread so it has permission to modify it
