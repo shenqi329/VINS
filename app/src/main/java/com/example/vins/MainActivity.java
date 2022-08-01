@@ -82,7 +82,7 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
     private Surface surface;
 
     // JNI Object
-    private VinsJNI vinsJNI;
+    private ov2slamJNI VinsJNI;
 
     // TextViews
     private TextView tvX;
@@ -170,8 +170,8 @@ public class MainActivity extends AppCompatActivity implements TextureView.Surfa
      * initializes an new VinsJNI Object
      */
     private void initVINS() {
-        vinsJNI = new VinsJNI();
-        vinsJNI.init();
+        VinsJNI = new ov2slamJNI();
+        VinsJNI.init();
     }
 
     /**

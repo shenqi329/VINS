@@ -13,13 +13,10 @@ add_definitions(-std=c++11)
 set(LIB_NAME NativeLib)
 set(
     ${LIB_NAME}_SRCS
-    src/main/cpp/jni/nativelib.cpp
     src/main/cpp/jni/ov2slamlib.cpp
 )
 
-add_subdirectory(libs/VINS-Mobile-master)
-#
-add_subdirectory(src/main/cpp/VINS_Android)
+add_subdirectory(libs/ov2slam)
 
 
 # Gradle automatically packages shared libraries with your APK.

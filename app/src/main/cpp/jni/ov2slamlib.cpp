@@ -21,7 +21,7 @@ class MyStreamBuf : public std::streambuf
 {
     enum
     {
-        BUFFER_SIZE = 4096,
+        BUFFER_SIZE = 256,
     };
 
 public:
@@ -97,7 +97,7 @@ Java_com_example_vins_ov2slamJNI_init(JNIEnv *env, jobject instance) {
         return;
     }
 
-    //std::cout.rdbuf(&g_MyStreamBuf);
+    std::cout.rdbuf(&g_MyStreamBuf);
 
     LOGI("Successfully created ov2slam Object");
 
