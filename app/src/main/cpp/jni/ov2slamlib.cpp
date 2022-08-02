@@ -82,12 +82,12 @@ private:
 SlamManager *slamManager = nullptr;
 MyStreamBuf g_MyStreamBuf;
 
-void * slam_run(SlamManager *slamManager)
-{
-    slamManager->run();
-
-    return nullptr;
-}
+//void * slam_run(SlamManager *slamManager)
+//{
+//    slamManager->run();
+//
+//    return nullptr;
+//}
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -112,9 +112,9 @@ Java_com_example_vins_ov2slamJNI_init(JNIEnv *env, jobject instance) {
     pparams.reset( new SlamParams(fsSettings) );
     slamManager = new SlamManager(pparams);
 
-    // Start the SLAM thread
-    pthread_t pthread;
-    pthread_create(&pthread, NULL, reinterpret_cast<void *(*)(void *)>(slam_run), (void*)slamManager);
+//    // Start the SLAM thread
+//    pthread_t pthread;
+//    pthread_create(&pthread, NULL, reinterpret_cast<void *(*)(void *)>(slam_run), (void*)slamManager);
 }
 
 double timeStampToSec(long timeStamp) {
@@ -126,7 +126,7 @@ double timeStampToSec(long timeStamp) {
 }
 
 extern "C"
-JNIEXPORT void JNICALL
+JNIEXPORT jdoubleArray JNICALL
 Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
                                                                            jint width, jint height,
                                                                            jint rowStrideY,
@@ -146,11 +146,6 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
     g_MyStreamBuf.pubsync();
 
     double timeStampSec = timeStampToSec(timeStamp);
-    // IMU Meassurements are momentary meassurements.
-    // Camera over an interval. so the mid of the interval is chosen as the timestamp
-    // Half the maximum exposure time - half senor time delta
-    //const double timeStampOffset = 1.0 / 30.0 / 2.0 - 1.0 / 100.0 / 2.0;
-    //timeStampSec += timeStampOffset;
 
     uint8_t *srcLumaPtr = nullptr;
     if (isGetData) {
@@ -162,7 +157,7 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
     }
     if (srcLumaPtr == nullptr) {
         LOGE("blit NULL pointer ERROR");
-        return;
+        return env->NewDoubleArray(0);
     }
 
     int rotatedWidth = height; // 480
@@ -170,32 +165,6 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
 
     cv::Mat mYuv(height + height / 2, width, CV_8UC1, srcLumaPtr);
 
-//    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
-//
-//    ANativeWindow_acquire(win);
-//    ANativeWindow_Buffer buf;
-
-//    if(isScreenRotated) {
-//        ANativeWindow_setBuffersGeometry(win, height, width, 0);
-//    } else {
-//        ANativeWindow_setBuffersGeometry(win, width, height, 0);
-//    }
-
-//    if (int32_t err = ANativeWindow_lock(win, &buf, NULL)) {
-//        LOGE("ANativeWindow_lock failed with error code %d\n", err);
-//        ANativeWindow_release(win);
-//        return;
-//    }
-
-//    LOGI("buf.stride: %d", buf.stride);
-
-//    uint8_t *dstPtr = reinterpret_cast<uint8_t *>(buf.bits);
-//    cv::Mat dstRgba;
-//    if(isScreenRotated) {
-//        dstRgba = cv::Mat(width, buf.stride, CV_8UC4, dstPtr); // TextureView buffer, use stride as width
-//    } else {
-//        dstRgba = cv::Mat(height, buf.stride, CV_8UC4, dstPtr); // TextureView buffer, use stride as width
-//    }
     cv::Mat srcRgba(height, width, CV_8UC4);
     cv::Mat rotatedRgba(rotatedHeight, rotatedWidth, CV_8UC4);
 
@@ -212,30 +181,42 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
 
     cv::Mat rotatedMono(rotatedHeight, rotatedWidth, CV_8UC1);
     cv::cvtColor(rotatedRgba, rotatedMono, cv::COLOR_RGBA2GRAY);
-    slamManager->addNewMonoImage(timeStampSec, rotatedMono);
 
-//    if (isScreenRotated) {
-//        srcRgba = rotatedRgba.clone();
-//    } else {
-//        cv::rotate(rotatedRgba, srcRgba, cv::ROTATE_90_COUNTERCLOCKWISE);
-//    }
+    Sophus::SE3d Tcw_SE3d = slamManager->trackNewMonoImage(timeStampSec, rotatedMono);
 
-//    // copy to TextureView surface
-//    uchar *dbuf = dstRgba.data;
-//    uchar *sbuf = srcRgba.data;
-//    int i;
-//
-//
-//    for (i = 0; i < srcRgba.rows; i++) {
-//        dbuf = dstRgba.data + i * buf.stride * 4;
-//        memcpy(dbuf, sbuf, srcRgba.cols * 4); //TODO: threw a SIGSEGV SEGV_ACCERR once
-//        sbuf += srcRgba.cols * 4;
-//    }
-//    //TE(actual_onImageAvailable);
-//
-//    ANativeWindow_unlockAndPost(win);
-//    ANativeWindow_release(win);
+    static bool instialized = false;
+    if(slamManager->pslamstate_->bvision_init_) {
 
+        LOGI("\nvision_init\n");
+
+        cv::Mat pose;
+        Eigen::Matrix4d Tcw_Matrix = Tcw_SE3d.matrix();
+        cv::eigen2cv(Tcw_Matrix, pose);
+
+        cv::Mat ima = pose;
+
+        jdoubleArray resultArray = env->NewDoubleArray(ima.rows * ima.cols);
+        jdouble *resultPtr;
+
+        resultPtr = env->GetDoubleArrayElements(resultArray, 0);
+        for (int i = 0; i < ima.rows; i++)
+            for (int j = 0; j < ima.cols; j++) {
+                float tempdata = ima.at<float>(i,j);
+                resultPtr[i * ima.rows + j] = tempdata;
+            }
+        env->ReleaseDoubleArrayElements(resultArray, resultPtr, 0);
+
+        if (false == instialized) {
+            Eigen::Matrix4d Twc_Matrix = Tcw_SE3d.inverse().matrix();
+        }
+
+        return resultArray;
+
+    } else {
+        instialized = false;
+    }
+
+    return env->NewDoubleArray(0);
 }
 
 extern "C"

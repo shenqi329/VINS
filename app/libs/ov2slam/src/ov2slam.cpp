@@ -282,6 +282,85 @@ void SlamManager::addNewMonoImage(const double time, cv::Mat &im0)
     bnew_img_available_ = true;
 }
 
+Sophus::SE3d SlamManager::trackNewMonoImage(const double time, cv::Mat &im0)
+{
+    if( pslamstate_->bdo_undist_ ) {
+        pcalib_model_left_->rectifyImage(im0, im0);
+    }
+
+    cv::Mat img_left, img_right;
+    img_left = im0;
+
+    // Update current frame
+    frame_id_++;
+    pcurframe_->updateFrame(frame_id_, time);
+
+    // Display info on current frame state
+    if( pslamstate_->debug_ )
+        pcurframe_->displayFrameInfo();
+
+    // 1. Send images to the FrontEnd
+    // =============================================
+    if( pslamstate_->debug_ )
+        std::cout << "\n \t >>> [SLAM Node] New image send to Front-End\n";
+
+    bool is_kf_req = pvisualfrontend_->visualTracking(img_left, time);
+
+    // Save current pose
+    Logger::addSE3Pose(time, pcurframe_->getTwc(), is_kf_req);
+
+    std::cout <<"addSE3Pose\n";
+
+    if( pslamstate_->breset_req_ ) {
+        std::cout <<"reset\n";
+        reset();
+        return Sophus::SE3d();
+    }
+
+    // 2. Create new KF if req. / Send new KF to Mapper
+    // ================================================
+    if( is_kf_req )
+    {
+        if( pslamstate_->debug_ )
+            std::cout << "\n \t >>> [SLAM Node] New Keyframe send to Back-End\n";
+
+        if( pslamstate_->stereo_ )
+        {
+            Keyframe kf(
+                    pcurframe_->kfid_,
+                    img_left,
+                    img_right,
+                    pvisualfrontend_->cur_pyr_
+            );
+
+            pmapper_->addNewKf(kf);
+        }
+        else if( pslamstate_->mono_ )
+        {
+            Keyframe kf(pcurframe_->kfid_, img_left);
+            pmapper_->addNewKf(kf);
+        }
+#ifndef ANDROID
+        if( !bkf_viz_ison_ ) {
+                    std::thread kf_viz_thread(&SlamManager::visualizeAtKFsRate, this, time);
+                    kf_viz_thread.detach();
+                }
+#endif
+    }
+
+    if( pslamstate_->debug_ || pslamstate_->log_timings_ )
+        std::cout << Profiler::getInstance().displayTimeLogs() << std::endl;
+#ifndef ANDROID
+    // Frame rate visualization (limit the visualization processing)
+            if( !bframe_viz_ison_ ) {
+                std::thread viz_thread(&SlamManager::visualizeAtFrameRate, this, time);
+                viz_thread.detach();
+            }
+#endif
+
+    return pcurframe_->getTcw();
+}
+
 void SlamManager::addNewStereoImages(const double time, cv::Mat &im0, cv::Mat &im1) 
 {
     if( pslamstate_->bdo_stereo_rect_ || pslamstate_->bdo_undist_ ) {

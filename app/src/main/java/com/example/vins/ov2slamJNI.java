@@ -17,7 +17,7 @@ public class ov2slamJNI implements Serializable {
     
     public native void init();
     
-    public static native void onImageAvailable(int width, int height, int rowStrideY, ByteBuffer bufferY, 
+    public static native double[] onImageAvailable(int width, int height, int rowStrideY, ByteBuffer bufferY,
                                                int rowStrideUV, ByteBuffer bufferU, ByteBuffer bufferV, 
                                                Surface surface, long timeStamp, boolean isScreenRotated,
                                                float virtualCamDistance,

@@ -289,11 +289,22 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         }
         preImageTimeStamp = curImageTimeStamp;
 
-        mVinsJNI.onImageAvailable(imageWidth, imageHeight,
+        double poseMatrix[] = mVinsJNI.onImageAvailable(imageWidth, imageHeight,
                 0, null,
                 0, null, null,
                 null, curImageTimeStamp, isScreenRotated,
                 virtualCamDistance, data, true);
+
+        if (poseMatrix.length != 0) {
+            double[][] pose = new double[4][4];
+            for (int i = 0; i < poseMatrix.length / 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    pose[i][j] = poseMatrix[i * 4 + j];
+                    System.out.print(pose[i][j] + "\t ");
+                }
+                System.out.print("\n");
+            }
+        }
 
         // run the updateViewInfo function on the UI Thread so it has permission to modify it
         runOnUiThread(new Runnable() {

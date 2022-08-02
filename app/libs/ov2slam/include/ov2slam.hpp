@@ -62,6 +62,7 @@ public:
 
     void addNewStereoImages(const double time, cv::Mat &im0, cv::Mat &im1);
     void addNewMonoImage(const double time, cv::Mat &im0);
+    Sophus::SE3d trackNewMonoImage(const double time, cv::Mat &im0);
 
     void setupCalibration();
     void setupStereoCalibration();
