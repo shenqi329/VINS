@@ -125,6 +125,9 @@ double timeStampToSec(long timeStamp) {
     return (double)s + (double)ms / 1000.f;
 }
 
+static  bool g_instialized = false;
+static  Eigen::Matrix4d g_Tcbegin_c_Matrix;
+
 extern "C"
 JNIEXPORT jdoubleArray JNICALL
 Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
@@ -184,36 +187,38 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
 
     Sophus::SE3d Tcw_SE3d = slamManager->trackNewMonoImage(timeStampSec, rotatedMono);
 
-    static bool instialized = false;
+
     if(slamManager->pslamstate_->bvision_init_) {
 
         LOGI("\nvision_init\n");
 
         cv::Mat pose;
         Eigen::Matrix4d Tcw_Matrix = Tcw_SE3d.matrix();
+
+
+        if (!g_instialized) {
+            g_Tcbegin_c_Matrix = Tcw_SE3d.inverse().matrix();
+            g_instialized = true;
+        }
+        Tcw_Matrix = g_Tcbegin_c_Matrix  * Tcw_Matrix;
+
         cv::eigen2cv(Tcw_Matrix, pose);
 
         cv::Mat ima = pose;
-
         jdoubleArray resultArray = env->NewDoubleArray(ima.rows * ima.cols);
         jdouble *resultPtr;
 
         resultPtr = env->GetDoubleArrayElements(resultArray, 0);
         for (int i = 0; i < ima.rows; i++)
             for (int j = 0; j < ima.cols; j++) {
-                float tempdata = ima.at<float>(i,j);
-                resultPtr[i * ima.rows + j] = tempdata;
+                resultPtr[i * ima.rows + j] = ima.at<double>(i,j);
             }
         env->ReleaseDoubleArrayElements(resultArray, resultPtr, 0);
-
-        if (false == instialized) {
-            Eigen::Matrix4d Twc_Matrix = Tcw_SE3d.inverse().matrix();
-        }
 
         return resultArray;
 
     } else {
-        instialized = false;
+        g_instialized = false;
     }
 
     return env->NewDoubleArray(0);
