@@ -1,13 +1,14 @@
 package com.example.vins.obj;
 
-import static android.opengl.GLES20.GL_TEXTURE0;
-import static android.opengl.GLES20.GL_TEXTURE_2D;
-import static android.opengl.GLES20.glActiveTexture;
-import static android.opengl.GLES20.glBindTexture;
-import static android.opengl.GLES20.glUniform1i;
+import static android.opengl.GLES20.glUseProgram;
+import static android.opengl.GLES30.GL_TEXTURE0;
+import static android.opengl.GLES30.GL_TEXTURE_2D;
+import static android.opengl.GLES30.glActiveTexture;
+import static android.opengl.GLES30.glBindTexture;
+import static android.opengl.GLES30.glUniform1i;
 
 import android.content.Context;
-import android.opengl.GLES20;
+import android.opengl.GLES30;
 
 import com.example.vins.MatrixState;
 import com.example.vins.R;
@@ -52,24 +53,16 @@ public class Ball {
 
 	public Ball(Context context){
 		this.context = context;
+	}
+
+	public void create() {
 		initVertexData();
+
 		getProgram();
-		aPositionLocation = GLES20.glGetAttribLocation(program, A_POSITION);
-		uMatrixLocation = GLES20.glGetUniformLocation(program, U_MATRIX);
-		// ***********************************************************************
+
+		glUseProgram(program);
+
 		initTexture();
-		// **********************************************************************
-		//---------传入顶点数据数据
-		GLES20.glVertexAttribPointer(aPositionLocation, COORDS_PER_VERTEX,
-				GLES20.GL_FLOAT, false, 0, vertexBuffer);
-		GLES20.glEnableVertexAttribArray(aPositionLocation);
-
-		// ***********************************************************************
-		GLES20.glVertexAttribPointer(aTextureCoordinates, TEXTURE_COORDIANTES_COMPONENT_COUNT,
-				GLES20.GL_FLOAT, false, 0, textureBuffer);
-		GLES20.glEnableVertexAttribArray(aTextureCoordinates);
-		// **********************************************************************
-
 	}
 
 	public void initVertexData() {
@@ -201,15 +194,23 @@ public class Ball {
 				.readTextFileFromResource(context, R.raw.fragment_shader_ball);
 		//获取program的id
 		program = ShaderHelper.buildProgram(vertexShaderSource, fragmentShaderSource);
-		GLES20.glUseProgram(program);
 	}
 
 	// *******************************************************
 	//初始化加载纹理
 	private void initTexture(){
-		aTextureCoordinates = GLES20.glGetAttribLocation(program, A_TEXTURE_COORDINATES);
-		uTextureUnitLocation = GLES20.glGetAttribLocation(program, U_TEXTURE_UNIT);
+		aTextureCoordinates = GLES30.glGetAttribLocation(program, A_TEXTURE_COORDINATES);
+		uTextureUnitLocation = GLES30.glGetAttribLocation(program, U_TEXTURE_UNIT);
 		texture = TextureHelper.loadTexture(context, R.mipmap.logo,false);
+	}
+	// *******************************************************
+	public void draw(){
+		GLES30.glUseProgram(program);
+		aPositionLocation = GLES30.glGetAttribLocation(program, A_POSITION);
+		uMatrixLocation = GLES30.glGetUniformLocation(program, U_MATRIX);
+
+		// ***********************************************************************
+
 		// Set the active texture unit to texture unit 0.
 		glActiveTexture(GL_TEXTURE0);
 		// Bind the texture to this unit.
@@ -217,13 +218,23 @@ public class Ball {
 		// Tell the texture uniform sampler to use this texture in the shader by
 		// telling it to read from texture unit 0.
 		glUniform1i(uTextureUnitLocation, 0);
-	}
-	// *******************************************************
-	public void draw(){
+
+		// **********************************************************************
+		//---------传入顶点数据数据
+		GLES30.glVertexAttribPointer(aPositionLocation, COORDS_PER_VERTEX,
+				GLES30.GL_FLOAT, false, 0, vertexBuffer);
+		GLES30.glEnableVertexAttribArray(aPositionLocation);
+
+		// ***********************************************************************
+		GLES30.glVertexAttribPointer(aTextureCoordinates, TEXTURE_COORDIANTES_COMPONENT_COUNT,
+				GLES30.GL_FLOAT, false, 0, textureBuffer);
+		GLES30.glEnableVertexAttribArray(aTextureCoordinates);
+		// **********************************************************************
+
 		//将最终变换矩阵写入
-		GLES20.glUniformMatrix4fv(uMatrixLocation, 1, false, MatrixState.getFinalMatrix(),0);
-		GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vCount);
-		MatrixState.angle += 0.005;
+		GLES30.glUniformMatrix4fv(uMatrixLocation, 1, false, MatrixState.getFinalMatrix(),0);
+		GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, vCount);
+		MatrixState.angle += 0.05;
 		MatrixState.setmModelMatrix(MatrixState.angle);
 	}
 }

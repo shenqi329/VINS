@@ -103,7 +103,12 @@ public class ShaderHelper {
         int fragmentShader = ShaderHelper
                 .compileFragmentShader(fragmentShaderSource);
 
-        return ShaderHelper.linkProgram(vertexShader, fragmentShader);
+        int program = ShaderHelper.linkProgram(vertexShader, fragmentShader);
+
+        glDeleteShader(vertexShader);vertexShader = 0;
+        glDeleteShader(fragmentShader);fragmentShader = 0;
+
+        return program;
     }
 
 

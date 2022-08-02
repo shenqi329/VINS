@@ -5,6 +5,7 @@ import android.opengl.EGLContext;
 import android.opengl.GLES30;
 import android.util.Log;
 
+import com.example.vins.obj.Ball;
 import com.jscheng.scamera.util.GlesUtil;
 
 import static com.jscheng.scamera.util.LogUtil.TAG;
@@ -20,12 +21,14 @@ public class RenderDrawerGroups {
     private WaterMarkRenderDrawer mWaterMarkDrawer;
     private DisplayRenderDrawer mDisplayDrawer;
     private RecordRenderDrawer mRecordDrawer;
+    private Ball ball;
 
     public RenderDrawerGroups(Context context) {
         this.mOriginalDrawer = new OriginalRenderDrawer();
         this.mWaterMarkDrawer = new WaterMarkRenderDrawer(context);
         this.mDisplayDrawer = new DisplayRenderDrawer();
         this.mRecordDrawer = new RecordRenderDrawer(context);
+        this.ball = new Ball(context);
         this.mFrameBuffer = 0;
         this.mInputTexture = 0;
     }
@@ -53,6 +56,7 @@ public class RenderDrawerGroups {
         this.mWaterMarkDrawer.create();
         this.mDisplayDrawer.create();
         this.mRecordDrawer.create();
+        this.ball.create();
     }
 
     public void surfaceChangedSize(int width, int height) {
@@ -86,10 +90,14 @@ public class RenderDrawerGroups {
         }
         drawRender(mOriginalDrawer, true, timestamp, transformMatrix);
         // 绘制顺序会控制着 水印绘制哪一层
-        //drawRender(mWaterMarkDrawer, true, timestamp, transformMatrix);
-        drawRender(mDisplayDrawer, false,  timestamp, transformMatrix);
+
+        // 画球
+        bindFrameBuffer(this.mOriginalDrawer.getOutputTextureId());
+        ball.draw();
+        unBindFrameBuffer();
+
         drawRender(mWaterMarkDrawer, true, timestamp, transformMatrix);
-        drawRender(mRecordDrawer, false, timestamp, transformMatrix);
+        drawRender(mDisplayDrawer, false,  timestamp, transformMatrix);
     }
 
     public void startRecord() {
