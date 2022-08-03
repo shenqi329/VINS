@@ -13,10 +13,10 @@ add_definitions(-std=c++11)
 set(LIB_NAME NativeLib)
 set(
     ${LIB_NAME}_SRCS
-    src/main/cpp/jni/ov2slamlib.cpp
+    src/main/cpp/jni/magicpenlib.cpp
 )
 
-add_subdirectory(libs/ov2slam)
+add_subdirectory(libs/magicpen)
 
 
 # Gradle automatically packages shared libraries with your APK.
@@ -51,13 +51,7 @@ target_link_libraries(
     # Specifies the target library.
     NativeLib
 
-    # VINSMobile
-
-    # msckf_mono
-
-    ov2slam
-
-#    VINS_Android
+    magicpen
 
     log
     # Links the target library to the log library

@@ -46,8 +46,8 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
 
     private CameraGLSurfaceView mCameraView;
 
-    private final int imageWidth = 640;
-    private final int imageHeight = 480;
+    private final int imageWidth = 360;
+    private final int imageHeight = 320;
 
     // needed for permission request callback
     private static final int PERMISSIONS_REQUEST_CODE = 12345;
@@ -63,7 +63,7 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
 
     // ImageView for initialization instructions
     private ImageView ivInit;
-    private ov2slamJNI mVinsJNI;
+    private magicpenJNI mVinsJNI;
 
     long preImageTimeStamp = -1;
 
@@ -101,7 +101,7 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         RealMatrix translation = new Array2DRowRealMatrix(T);
 
         MatrixState.set_model_view_matrix(rotation, translation);
-        MatrixState.set_projection_matrix(428f, 429f, 240f, 320f, 480, 640, 0.01f, 100f);
+        MatrixState.set_projection_matrix(160, 180, 160, 180, 320, 360, 0.01f, 100f);
 
         initViews();
     }
@@ -122,50 +122,9 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         tvX = (TextView) findViewById(R.id.x_Label);
         tvY = (TextView) findViewById(R.id.y_Label);
         tvZ = (TextView) findViewById(R.id.z_Label);
-        tvTotal = (TextView) findViewById(R.id.total_odom_Label);
-        tvLoop = (TextView) findViewById(R.id.loop_Label);
-        tvFeature = (TextView) findViewById(R.id.feature_Label);
-        tvBuf = (TextView) findViewById(R.id.buf_Label);
-
-        ivInit = (ImageView) findViewById(R.id.init_image_view);
-        ivInit.setVisibility(View.VISIBLE);
 
         mCameraView = (CameraGLSurfaceView) findViewById(R.id.gl_texture_view);
         mCameraView.setCallback(this);
-
-
-        // Define the Switch listeners
-        Switch arSwitch = (Switch) findViewById(R.id.ar_switch);
-        arSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                mVinsJNI.onARSwitch(isChecked);
-            }
-        });
-
-        Switch loopSwitch = (Switch) findViewById(R.id.loop_switch);
-        loopSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                mVinsJNI.onLoopSwitch(isChecked);
-            }
-        });
-
-        SeekBar zoomSlider = (SeekBar) findViewById(R.id.zoom_slider);
-        zoomSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                virtualCamDistance = minVirtualCamDistance + ((float) progress / 100) * (maxVirtualCamDistance - minVirtualCamDistance);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-            }
-        });
     }
 
     private void initCameraHandler() {
@@ -190,14 +149,13 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
 
         startPreview();
 
-        if (mVinsJNI == null) mVinsJNI = new ov2slamJNI();
+        if (mVinsJNI == null) mVinsJNI = new magicpenJNI();
         mVinsJNI.init();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        mVinsJNI.onPause();
     }
 
     private void copyFile(final File file) {
@@ -289,52 +247,11 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         }
         preImageTimeStamp = curImageTimeStamp;
 
-        double poseMatrix[] = mVinsJNI.onImageAvailable(imageWidth, imageHeight,
+        mVinsJNI.onImageAvailable(imageWidth, imageHeight,
                 0, null,
                 0, null, null,
                 null, curImageTimeStamp, isScreenRotated,
                 virtualCamDistance, data, true);
-
-        if (poseMatrix.length != 0) {
-            double[][] pose = new double[4][4];
-            for (int i = 0; i < poseMatrix.length / 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    pose[i][j] = poseMatrix[i * 4 + j];
-                    System.out.print(pose[i][j] + "\t ");
-                }
-                System.out.print("\n");
-            }
-
-            double[][] R = new double[3][3];
-            double[] T = new double[3];
-
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
-                    R[i][j] = pose[i][j];
-                }
-            }
-
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
-                    R[i][j] = pose[i][j];
-                }
-            }
-            for (int i = 0; i < 3; i++) {
-                T[i] = pose[i][3];
-            }
-            RealMatrix rotation = new Array2DRowRealMatrix(R);
-            RealMatrix translation = new Array2DRowRealMatrix(T);
-            MatrixState.set_model_view_matrix(rotation, translation);
-            printMatrix(rotation);
-            printMatrix(translation);
-        }
-
-        // run the updateViewInfo function on the UI Thread so it has permission to modify it
-        runOnUiThread(new Runnable() {
-            public void run() {
-                mVinsJNI.updateViewInfo(tvX, tvY, tvZ, tvTotal, tvLoop, tvFeature, tvBuf, ivInit);
-            }
-        });
     }
 
     /**
