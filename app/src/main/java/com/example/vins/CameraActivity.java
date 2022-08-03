@@ -304,6 +304,29 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
                 }
                 System.out.print("\n");
             }
+
+            double[][] R = new double[3][3];
+            double[] T = new double[3];
+
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    R[i][j] = pose[i][j];
+                }
+            }
+
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    R[i][j] = pose[i][j];
+                }
+            }
+            for (int i = 0; i < 3; i++) {
+                T[i] = pose[i][3];
+            }
+            RealMatrix rotation = new Array2DRowRealMatrix(R);
+            RealMatrix translation = new Array2DRowRealMatrix(T);
+            MatrixState.set_model_view_matrix(rotation, translation);
+            printMatrix(rotation);
+            printMatrix(translation);
         }
 
         // run the updateViewInfo function on the UI Thread so it has permission to modify it
@@ -312,6 +335,19 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
                 mVinsJNI.updateViewInfo(tvX, tvY, tvZ, tvTotal, tvLoop, tvFeature, tvBuf, ivInit);
             }
         });
+    }
+
+    /**
+     * 打印Mat矩阵函数
+     **/
+    void printMatrix(RealMatrix input) {
+        double matrixtoarray[][] = input.getData();
+        for (int i = 0; i < matrixtoarray.length; i++) {
+            for (int j = 0; j < matrixtoarray[0].length; j++) {
+                System.out.print(matrixtoarray[i][j] + "\t");
+            }
+            System.out.print("\n");
+        }
     }
 
     private boolean requestPermission() {

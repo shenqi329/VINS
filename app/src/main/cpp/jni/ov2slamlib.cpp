@@ -198,6 +198,7 @@ Java_com_example_vins_ov2slamJNI_onImageAvailable(JNIEnv *env, jclass type,
 
         if (!g_instialized) {
             g_Tcbegin_c_Matrix = Tcw_SE3d.inverse().matrix();
+            g_Tcbegin_c_Matrix(2, 3) = 5;
             g_instialized = true;
         }
         Tcw_Matrix = g_Tcbegin_c_Matrix  * Tcw_Matrix;
