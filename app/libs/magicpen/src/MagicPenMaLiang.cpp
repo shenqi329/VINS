@@ -1,168 +1,19 @@
 #include "MagicPenMaLiang.h"
-
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 #include "polypartition.h"
 
 #define PI 3.14159265
 
-// MagicPenModel3D begin
-
-void MagicPen3DModel::Init(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour, int cols, int rows,  int texture_side_width, int texture_side_height) {
-	
-
-	FreeVertice();
-
-	InitVerticesFront(triangles, origin_contour, cols, rows);
-	
-	InitVerticesEdge(origin_contour, division_contour, cols, rows, texture_side_width, texture_side_height);
-}
-
-void MagicPen3DModel::InitVerticesFront(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, int cols, int rows) {
-
-	_vertices_front_size = sizeof(MagicPenVertice) * 3 * triangles.size();
-	_vertices_front = (MagicPenVertice*)malloc(_vertices_front_size);
-
-	_indices_front_size = sizeof(int) * 3 * triangles.size();
-	_indices_front = (int*)malloc(_indices_front_size);
-
-	int index = 0;
-	for(std::list<TPPLPoly>::iterator iter = triangles.begin() ; iter != triangles.end() ;iter++, index++) {
-		
-		if(3 != iter->GetNumPoints()) {
-			continue;
-		}
-
-		for (size_t i = 0; i < 3; i++) {
-
-			int offset = (index*3 + i);
-
-			// position
-			_vertices_front[offset].positions[0] =  (iter->GetPoints()[i].x - cols/2) * 2 / cols;
-			_vertices_front[offset].positions[1] = -(iter->GetPoints()[i].y - rows/2) * 2 / rows;
-			_vertices_front[offset].positions[2] = 0.0f;
-
-			// color
-			_vertices_front[offset].colors[0] = 0.5f;
-			_vertices_front[offset].colors[1] = 0.5f;
-			_vertices_front[offset].colors[2] = 0.5f;
-
-			// texture coords
-			size_t origin_contour_index = iter->GetPoints()[i].id;
-			_vertices_front[offset].textures[0] = (float)origin_contour.contour_points[origin_contour_index].point.x / cols;
-			_vertices_front[offset].textures[1] = (float)origin_contour.contour_points[origin_contour_index].point.y / rows;
-
-			_indices_front[index*3 + i] = index*3 + i;
-		}
-	}
-
-}
-
-void MagicPen3DModel::InitVerticesEdge(MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour, int cols, int rows, int texture_side_width, int texture_side_height) {
-
-	_vertices_side_size = sizeof(MagicPenVertice) * 2 * origin_contour.contour_points.size();
-	_vertices_side = (MagicPenVertice*)malloc(_vertices_side_size);
-
-	_indices_side_size = sizeof(int) * 3 * 2 * origin_contour.contour_points.size();
-	_indices_side = (int*)malloc(_indices_side_size);
-
-	float distance_total = 0;
-	for (int index = 0; index < origin_contour.contour_points.size(); index++) {
-
-		int point_next_index = (index + 1) % origin_contour.contour_points.size();
-
-		float point_x =  (float(origin_contour.contour_points[index].point.x) - cols/2) * 2 / cols;
-		float point_y = -(float(origin_contour.contour_points[index].point.y) - rows/2) * 2 / rows;
-
-		size_t id0 = origin_contour.contour_points[index].indexs[0];
-		size_t id1 = origin_contour.contour_points[index].indexs[1];
-
-		float point_x_tick = (float(division_contour[id0].contour_points[id1].point.x) - cols/2) * 2 / cols;
-		float point_y_tick = -(float(division_contour[id0].contour_points[id1].point.y) - rows/2) * 2 / rows;
-
-		float point_next_x =  (float(origin_contour.contour_points[point_next_index].point.x) - cols/2) * 2 / cols;
-		float point_next_y = -(float(origin_contour.contour_points[point_next_index].point.y) - rows/2) * 2 / rows;
-
-		float x_distance = point_x - point_next_x;
-		float y_distance = point_y - point_next_y;
-		float distance = sqrtf(x_distance*x_distance + y_distance * y_distance);
-		distance = distance * texture_side_width / 0.1f / texture_side_height;
-
-		distance_total += distance;
-		for (int i = 0; i < 2; i++) {
-			int offset = (index*2 + i);
-
-			_vertices_side[offset].positions[0] =  point_x_tick;
-			_vertices_side[offset].positions[1] =  point_y_tick;
-
-			if(0 == i) {
-				_vertices_side[offset].positions[2] = 0.0f;
-				_vertices_side[offset].textures[0] = 0;  //  texture coords x
-			} else {
-				_vertices_side[offset].positions[2] = -0.1f;
-				_vertices_side[offset].textures[0] = 1.0f; // texture coords x
-			}
-			_vertices_side[offset].textures[1] = distance_total;  //texture coords y
-
-			// color
-			_vertices_side[offset].colors[0] = 0.5f;
-			_vertices_side[offset].colors[1] = 0.5f;
-			_vertices_side[offset].colors[2] = 0.5f;
-		}
-		
-		if (distance_total >= 0.5f) {
-			distance_total = 0.0f;
-		}
-
-		int offset = index * 3 * 2;
-		// first triangle 
-		_indices_side[offset + 0] = index * 2;
-		_indices_side[offset + 1] = index * 2 + 1;
-		_indices_side[offset + 2] = point_next_index * 2;
-
-		// second triangle
-		_indices_side[offset + 3] = index * 2 + 1;
-		_indices_side[offset + 4] = point_next_index * 2;
-		_indices_side[offset + 5] = point_next_index * 2 + 1;
-	}
-}
-
-MagicPen3DModel::~MagicPen3DModel() {
-
-	FreeVertice();
-
-}
-
-void MagicPen3DModel::FreeVertice() {
-
-	// vertices front
-	if(_vertices_front) {
-		free(_vertices_front);
-		_vertices_front = nullptr;
-		_vertices_front_size = 0;
-	}
-
-	if(_indices_front) {
-		free(_indices_front);
-		_indices_front = nullptr;
-		_indices_front_size = 0;
-	}
-
-	// vertices edge
-	if (_vertices_side) {
-		free(_vertices_side);
-		_vertices_side = nullptr;
-		_vertices_side_size = 0;
-	}
-
-	if (_indices_side) {
-		free(_indices_side);
-		_indices_side = nullptr;
-		_indices_side_size = 0;
-	}
-}
-
-// MagicPenModel3D end
+#ifdef ANDROID
+#include <android/log.h>
+#define LOG_TAG "MagicPenMaLiang"
+#define LOGI(...)  __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...)  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#else
+#define LOGI(...)
+#define LOGE(...)
+#endif
 
 
 // MagicPenMaLiang begin
@@ -212,27 +63,108 @@ static bool IsLineBreak(cv::Mat &detected_edges, int row, int col) {
     return false;
 }
 
+bool GetMaskMaxWhiteRect(cv::Mat mask , cv::Rect &rect) {
+
+	bool setBegin = false;
+	
+	struct WhiteSpace {
+		int beginRow = 0;
+		int endRow = 0;
+	};
+
+	WhiteSpace maxWhiteSpace;
+	WhiteSpace whiteSpace;
+
+	std::vector<int> whiteTag(mask.rows);
+	for (size_t row = 0; row < mask.rows; row++) {
+		uchar* p1 = mask.ptr<uchar>(row);
+		int whiteCount = 0;
+		for (size_t col = 0; col < mask.cols; col++) {
+			uchar c = p1[col];
+			if (0 != c) {
+				whiteCount++;
+			}
+			if (whiteCount > mask.rows / 2) {
+				if (!setBegin) {
+					whiteSpace.beginRow = row;
+					setBegin = true;
+				}
+				break;
+			}
+		}
+		if(setBegin) {
+			
+			whiteSpace.endRow = row;
+
+			if (whiteCount < mask.rows / 2) {
+				setBegin = false;
+			}
+			if (whiteSpace.endRow - whiteSpace.beginRow > maxWhiteSpace.endRow - maxWhiteSpace.beginRow) {
+				maxWhiteSpace = whiteSpace;
+			}
+		}
+	}
+
+	rect.x = 0;
+	rect.y = maxWhiteSpace.beginRow;
+	rect.width = mask.cols;
+	rect.height = maxWhiteSpace.endRow - maxWhiteSpace.beginRow + 1;
+
+
+    if (maxWhiteSpace.endRow - maxWhiteSpace.beginRow < mask.rows / 4) {
+        return false;
+    }
+
+    return true;
+}
+
+void MagicPenMaLiang::Init() {
+    _render.Init();
+}
 
 bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_side_height) {
+
+    if (_init_image) {
+        return false;
+    }
 
 	_image = image;
 	_texture_side_width = texture_side_width;
 	_texture_side_height = texture_side_height;
 
+    cv::imwrite("/storage/emulated/0/SBML/origin.jpg",image);
+
 	cv::Mat image_gray;
 	cv::Mat	detected_edges;
+	cv::Mat	mask;
 
-	cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+	// 查找白色区域
+	std::vector<int> lower_bound = {155, 155, 155};
+    std::vector<int> upper_bound = {255, 255, 255};
+	cv::inRange(image, lower_bound, upper_bound, mask);
+
+	cv::Rect maxWhiteRect;
+	if(!GetMaskMaxWhiteRect(mask , maxWhiteRect)) {
+        return false;
+    }
+
+	// 获取白色区域灰度图，用于后续检测
+	cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+	image_gray(maxWhiteRect).copyTo(detected_edges);
 
     //![reduce_noise]
     /// Reduce noise with a kernel 3x3
-    cv::blur(image_gray, detected_edges, cv::Size(3,3));
+    // cv::blur(detected_edges, detected_edges, cv::Size(3,3));
     //![reduce_noise]
+
+    cv::imwrite("/storage/emulated/0/SBML/detected_edges.jpg",detected_edges);
 
     //![canny]
     /// Canny detector
     cv::Canny(detected_edges, detected_edges, threshold, threshold*ratio, kernel_size);
     //![canny]
+
+	cv::imwrite("/storage/emulated/0/SBML/Canny_detected_edges.jpg",detected_edges);
 
     ConnectAdjacentEdge(detected_edges);
 
@@ -245,23 +177,53 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	}
 
 	ApproxPoly(contours);
+
+	// 筛选最大且居中的轮廓
 	float maxArea = 0;
-	int maxAreaIndex = 0;
+	int maxAreaIndex = -1;
     for (size_t i = 0; i < contours.size(); i++) {
+
+        if (contours[i].size() < 50) {
+            continue;
+        }
+
 		cv::RotatedRect minAreaRect = cv::minAreaRect(contours[i]);
-		float area = minAreaRect.size.width * minAreaRect.size.height;
-		if (area > maxArea) {
+
+        if (minAreaRect.size.area() < image.cols * image.rows / 64) {
+            continue;
+        }
+
+		if (abs(minAreaRect.center.x - image.cols / 2) > image.cols / 6) {
+			continue;
+		}
+
+		if (abs(minAreaRect.center.y + maxWhiteRect.y  - image.rows / 2) > image.rows / 6) {
+			continue;
+		}
+
+		if (minAreaRect.size.area() > maxArea) {
+			maxArea = minAreaRect.size.area();
 			maxAreaIndex = i;
 		}
     }
 
+	if (maxAreaIndex < 0) {
+		return false;
+	}
+
+	cv::Mat contours_img(detected_edges.size(), CV_8U, cv::Scalar(0));
+	drawContours(contours_img, contours, maxAreaIndex, cv::Scalar(255), 1);
+    cv::imwrite("/storage/emulated/0/SBML/contours_img.jpg",contours_img);
+	//imshow("contours_img", contours_img);
+
 	_origin_contour.contour_points.resize(contours[maxAreaIndex].size());
 	for (size_t i = 0; i < contours[maxAreaIndex].size(); i++){
-		_origin_contour.contour_points[i].point = contours[maxAreaIndex][i];
+		_origin_contour.contour_points[i].point.x = contours[maxAreaIndex][i].x + maxWhiteRect.x;
+		_origin_contour.contour_points[i].point.y = contours[maxAreaIndex][i].y + maxWhiteRect.y;
 	}
-	
+
 	// 查找肢体(arms and legs)
-	FindLimbs(contours[maxAreaIndex]);
+	//FindLimbs(contours[maxAreaIndex]);
 
 	MagicPenContour body_contour;
 	_division_contour.clear();
@@ -315,7 +277,9 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	// 三角形填充多边形
 	PolyTriangulate(_division_contour);
 
-	_3dModel.Init(_triangulate_result, _origin_contour, _division_contour,image.cols, image.rows, texture_side_width, texture_side_height);
+    cv::Mat image_rgba;
+    cv::cvtColor(image, image_rgba, cv::COLOR_BGR2RGBA);
+	_3dModel.Init(_triangulate_result, _origin_contour, _division_contour,image.cols, image.rows, texture_side_width, texture_side_height, image_rgba);
 
 #ifdef MagicPenMaLiang_DEBUG
 	// Create the marker image for the watershed algorithm
@@ -324,36 +288,16 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 
 	ShowDebugWindows(detected_edges, markers);
 #endif
-
+    _init_image = true;
 	return true;
 }
 
-void MagicPenMaLiang::Tick(float tick, MagicPenContour &contour) {
-
-	cv::Point2f origin_start_point			= _origin_contour.contour_points[contour.contour_points[0									].index].point;
-	cv::Point2f origin_end_point			= _origin_contour.contour_points[contour.contour_points[contour.contour_points.size() - 1	].index].point;
-	cv::Point2f origin_max_distance_point	= _origin_contour.contour_points[contour.contour_points[contour.limb_info.max_point_offset	].index].point;
-
-	cv::Point2f origin_mid_point = (origin_start_point + origin_end_point) / 2.0f;
-
-	float angle = _tickSum * PI / 180;
-
-	for (size_t j = 0; j < contour.contour_points.size(); j++) {
-
-		cv::Point2f point = _origin_contour.contour_points[contour.contour_points[j].index].point;
-		point -= origin_mid_point;
-		cv::Point2f new_point;
-
-		new_point.x = point.x * cos(angle) - point.y * sin(angle);
-		new_point.y = point.x * sin(angle) + point.y * cos(angle);
-
-		new_point += origin_mid_point;
-
-		contour.contour_points[j].point = new_point;
-	}
+#ifdef ANDROID
+void MagicPenMaLiang::Draw(float timeStampSec) {
+    _render.Draw(&_3dModel, timeStampSec);
 }
 
-
+#else
 void MagicPenMaLiang::Tick(float tick) {
 	_tickSum += 0.2;
 	if (_tickSum > 45) {
@@ -369,14 +313,41 @@ void MagicPenMaLiang::Tick(float tick) {
 
 		Tick(tick, _division_contour[i]);
 	}
-	
+
 	PolyTriangulate(_division_contour);
 	_3dModel.Init(_triangulate_result, _origin_contour, _division_contour,_image.cols, _image.rows, _texture_side_width, _texture_side_height);
-	
+
 #ifdef MagicPenMaLiang_DEBUG
 	ShowDebugWindows_Triangulate();
 #endif
 }
+
+#endif
+void MagicPenMaLiang::Tick(float tick, MagicPenContour &contour) {
+
+    cv::Point2f origin_start_point			= _origin_contour.contour_points[contour.contour_points[0									].index].point;
+    cv::Point2f origin_end_point			= _origin_contour.contour_points[contour.contour_points[contour.contour_points.size() - 1	].index].point;
+    cv::Point2f origin_max_distance_point	= _origin_contour.contour_points[contour.contour_points[contour.limb_info.max_point_offset	].index].point;
+
+    cv::Point2f origin_mid_point = (origin_start_point + origin_end_point) / 2.0f;
+
+    float angle = _tickSum * PI / 180;
+
+    for (size_t j = 0; j < contour.contour_points.size(); j++) {
+
+        cv::Point2f point = _origin_contour.contour_points[contour.contour_points[j].index].point;
+        point -= origin_mid_point;
+        cv::Point2f new_point;
+
+        new_point.x = point.x * cos(angle) - point.y * sin(angle);
+        new_point.y = point.x * sin(angle) + point.y * cos(angle);
+
+        new_point += origin_mid_point;
+
+        contour.contour_points[j].point = new_point;
+    }
+}
+
 
 #ifdef MagicPenMaLiang_DEBUG
 void MagicPenMaLiang::ShowDebugWindows_Points() {
@@ -440,14 +411,18 @@ static TPPLOrientation GetOrientation(std::vector<cv::Point> &contour, long star
 	int count = 0;
 	for (i1 = startIndex; i1 < startIndex + size; i1++) {
 		i1 = i1 % contour.size();
-		i2 = i1 + 1;
+		i2 = (i1 + 1) % contour.size();
 
 		count++;
 		if(size == count) {
-			i2 = startIndex;	
+			i2 = startIndex;
 		}
 
 		area += contour[i1].x * contour[i2].y - contour[i1].y * contour[i2].x;
+
+		if(size == count) {
+			break;
+		}
 	}
 	if (area > 0) {
 		return TPPL_ORIENTATION_CCW;

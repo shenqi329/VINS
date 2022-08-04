@@ -11,11 +11,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.util.Size;
-import android.view.View;
-import android.widget.CompoundButton;
 import android.widget.ImageView;
-import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -63,7 +59,7 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
 
     // ImageView for initialization instructions
     private ImageView ivInit;
-    private magicpenJNI mVinsJNI;
+    //private magicpenJNI mMaginPenJNI;
 
     long preImageTimeStamp = -1;
 
@@ -148,14 +144,12 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         super.onResume();
 
         startPreview();
-
-        if (mVinsJNI == null) mVinsJNI = new magicpenJNI();
-        mVinsJNI.init();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        CameraUtil.releaseCamera();
     }
 
     private void copyFile(final File file) {
@@ -247,7 +241,7 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         }
         preImageTimeStamp = curImageTimeStamp;
 
-        mVinsJNI.onImageAvailable(imageWidth, imageHeight,
+        MagicPenJNI.onImageAvailable(imageWidth, imageHeight,
                 0, null,
                 0, null, null,
                 null, curImageTimeStamp, isScreenRotated,

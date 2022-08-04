@@ -5,6 +5,7 @@ import android.opengl.EGLContext;
 import android.opengl.GLES30;
 import android.util.Log;
 
+import com.example.vins.MagicPenJNI;
 import com.example.vins.obj.Ball;
 import com.jscheng.scamera.util.GlesUtil;
 
@@ -57,6 +58,7 @@ public class RenderDrawerGroups {
         this.mDisplayDrawer.create();
         this.mRecordDrawer.create();
         this.ball.create();
+        MagicPenJNI.init();
     }
 
     public void surfaceChangedSize(int width, int height) {
@@ -93,10 +95,11 @@ public class RenderDrawerGroups {
 
         // 画球
         bindFrameBuffer(this.mOriginalDrawer.getOutputTextureId());
-        ball.draw();
+        //ball.draw();
+        MagicPenJNI.draw(timestamp);
         unBindFrameBuffer();
 
-        drawRender(mWaterMarkDrawer, true, timestamp, transformMatrix);
+        //drawRender(mWaterMarkDrawer, true, timestamp, transformMatrix);
         drawRender(mDisplayDrawer, false,  timestamp, transformMatrix);
     }
 
