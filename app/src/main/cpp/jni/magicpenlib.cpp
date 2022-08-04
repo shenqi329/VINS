@@ -99,6 +99,18 @@ double timeStampToSec(long timeStamp) {
 
 extern "C"
 JNIEXPORT void JNICALL
+Java_com_example_vins_MagicPenJNI_setEdgeImageByte(JNIEnv *env, jclass type, jbyteArray bytesArray) {
+
+    uint8_t*  ptr = reinterpret_cast<uint8_t *>(env->GetByteArrayElements(bytesArray,NULL));
+    int length = env->GetArrayLength(bytesArray);
+
+    std::vector<uchar> bytes(ptr, ptr + length);
+
+    magicPenMaLiang.setEdgeImageByte(bytes);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
 Java_com_example_vins_MagicPenJNI_onImageAvailable(JNIEnv *env, jclass type,
                                                    jint width, jint height,
                                                    jint rowStrideY,

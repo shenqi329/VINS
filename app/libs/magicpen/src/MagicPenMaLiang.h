@@ -7,9 +7,8 @@
 #ifdef _WIN32
 #define MagicPenMaLiang_DEBUG
 #endif
-#ifdef ANDROID
+
 #include "MagicPenRender.h"
-#endif
 
 class MagicPenMaLiang
 {
@@ -19,11 +18,10 @@ public:
 	
 	bool Magic(cv::Mat image, int texture_side_width, int texture_side_height);
 
-#ifdef ANDROID
+    void setEdgeImageByte(std::vector<uchar> data);
+
     void Draw(float timeStampSec);
-#else
-	void Tick(float tick);
-#endif
+
 	MagicPen3DModel *Get3DModel();
 private:
 

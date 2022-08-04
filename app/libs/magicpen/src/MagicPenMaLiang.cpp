@@ -122,6 +122,15 @@ void MagicPenMaLiang::Init() {
     _render.Init();
 }
 
+void MagicPenMaLiang::setEdgeImageByte(std::vector<uchar> data) {
+
+    cv::Mat edge_texture_image = cv::imdecode(data, cv::IMREAD_COLOR);
+	cv::Mat edge_texture_image_rgba;
+	cv::cvtColor(edge_texture_image , edge_texture_image_rgba, cv::COLOR_BGR2RGBA);
+
+	_render.SetTextureEdgeImage(edge_texture_image_rgba);
+}
+
 bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_side_height) {
 
     if (_init_image) {
@@ -292,37 +301,10 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	return true;
 }
 
-#ifdef ANDROID
 void MagicPenMaLiang::Draw(float timeStampSec) {
     _render.Draw(&_3dModel, timeStampSec);
 }
 
-#else
-void MagicPenMaLiang::Tick(float tick) {
-	_tickSum += 0.2;
-	if (_tickSum > 45) {
-		_tickSum = 0;
-	}
-
-	printf("_tickSum = %f\n", _tickSum);
-
-	for (size_t i = 1; i < _division_contour.size(); i++) {
-		if (_division_contour[i].limb_info.type < MagicPenContourLeg_Left || _division_contour[i].limb_info.type > MagicPenContourLeg_Right) {
-			continue;
-		}
-
-		Tick(tick, _division_contour[i]);
-	}
-
-	PolyTriangulate(_division_contour);
-	_3dModel.Init(_triangulate_result, _origin_contour, _division_contour,_image.cols, _image.rows, _texture_side_width, _texture_side_height);
-
-#ifdef MagicPenMaLiang_DEBUG
-	ShowDebugWindows_Triangulate();
-#endif
-}
-
-#endif
 void MagicPenMaLiang::Tick(float tick, MagicPenContour &contour) {
 
     cv::Point2f origin_start_point			= _origin_contour.contour_points[contour.contour_points[0									].index].point;

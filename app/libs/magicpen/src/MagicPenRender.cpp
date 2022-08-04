@@ -10,6 +10,10 @@
 #else
 #define LOGI(...)
 #define LOGE(...)
+
+#include <stb_image.h>
+#include <learnopengl/filesystem.h>
+
 #endif
 
 #include <glm/glm.hpp>
@@ -76,10 +80,36 @@ MagicPenRender::~MagicPenRender() {
 void MagicPenRender::Init() {
     InitProgram();
     InitBuffer();
+	GenTextures();
 }
 
 void MagicPenRender::GenTextures() {
+    int width_edge, height_edge, nrChannels_edge;
+    unsigned char *data_edge = nullptr;
+#ifdef _WIN32
+	// The FileSystem::getPath(...) is part of the GitHub repository so we can find files on any IDE/platform; replace it with your own image path.
+	data_edge = stbi_load(FileSystem::getPath("resources/textures/edge.png").c_str(), &width_edge, &height_edge, &nrChannels_edge, 0);
+#elif defined(ANDROID)
+    data_edge = _texture_edge_image_rgba.data;
+    width_edge = _texture_edge_image_rgba.cols;
+    height_edge = _texture_edge_image_rgba.rows;
+#endif
+    glGenTextures(1, &_texture_edge);
+    glBindTexture(GL_TEXTURE_2D, _texture_edge); // all upcoming GL_TEXTURE_2D operations now have effect on this texture object
+    // set the texture wrapping parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // set texture filtering parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    if (data_edge) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width_edge, height_edge, 0, GL_RGBA, GL_UNSIGNED_BYTE, data_edge);
+        glGenerateMipmap(GL_TEXTURE_2D);
+#ifdef _WIN32
+        stbi_image_free(data_edge);
+#endif
+    }
 }
 
 void MagicPenRender::InitProgram() {
@@ -176,6 +206,10 @@ void MagicPenRender::InitBuffer() {
 
 }
 
+void MagicPenRender::SetTextureEdgeImage(cv::Mat texture_edge_image_rgba) {
+    _texture_edge_image_rgba = texture_edge_image_rgba;
+}
+
 void MagicPenRender::Draw(MagicPen3DModel *pModel, float timeStampSec) {
 
     if (!pModel->_image_rgba.data) {
@@ -241,8 +275,9 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, float timeStampSec) {
     // render
     // ------
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    //glViewport(0, 0, 320, 360);
-
+#ifdef _WIN32
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#endif
     // bind Texture
     glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -254,8 +289,8 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, float timeStampSec) {
     float radius = 3.0f;
 
 #if 1
-    float camX   = sin(0) * radius;
-    float camZ   = cos(0) * radius;
+    float camX   = sin(timeStampSec) * radius;
+    float camZ   = cos(timeStampSec) * radius;
 #else
     float camX   = sin(0) * radius;
     float camZ   = cos(0) * radius;
@@ -277,8 +312,15 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, float timeStampSec) {
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
     glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
+	glBindVertexArray(_VAO);
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(0.0f, 0.0f, -0.10001f));
+	//model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+	glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
+    glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
+
     // bind Texture
-    //glBindTexture(GL_TEXTURE_2D, texture_edge);
+    glBindTexture(GL_TEXTURE_2D, _texture_edge);
 
     glBindVertexArray(_VAO_edge);
     model = glm::mat4(1.0f);

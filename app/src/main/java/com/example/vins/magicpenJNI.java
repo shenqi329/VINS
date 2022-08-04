@@ -16,6 +16,8 @@ public class MagicPenJNI implements Serializable {
     static { System.loadLibrary("NativeLib"); }
     
     public static native void init();
+
+    public static native void setEdgeImageByte(byte[] bytes);
     
     public static native void onImageAvailable(int width, int height, int rowStrideY, ByteBuffer bufferY,
                                                int rowStrideUV, ByteBuffer bufferU, ByteBuffer bufferV, 

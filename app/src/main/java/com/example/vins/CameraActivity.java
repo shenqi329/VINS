@@ -100,6 +100,8 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         MatrixState.set_projection_matrix(160, 180, 160, 180, 320, 360, 0.01f, 100f);
 
         initViews();
+
+        MagicPenJNI.setEdgeImageByte(getFromRaw());
     }
 
     public void startPreview() {
@@ -150,6 +152,22 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
     protected void onPause() {
         super.onPause();
         CameraUtil.releaseCamera();
+    }
+
+    private byte[] getFromRaw() {
+        try {
+            InputStream in = getResources().openRawResource(R.raw.edge);
+            //获取文件的字节数
+            int lenght = in.available();
+            //创建byte数组
+            byte[] buffer = new byte[lenght];
+            //将文件中的数据读到byte数组中
+            in.read(buffer);
+            return buffer;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new byte[0];
     }
 
     private void copyFile(final File file) {
