@@ -96,7 +96,8 @@ public class RenderDrawerGroups {
         // 画球
         bindFrameBuffer(this.mOriginalDrawer.getOutputTextureId());
         //ball.draw();
-        MagicPenJNI.draw(timestamp);
+        double seconds = timestamp / 1000000000.0;
+        MagicPenJNI.draw(seconds);
         unBindFrameBuffer();
 
         //drawRender(mWaterMarkDrawer, true, timestamp, transformMatrix);

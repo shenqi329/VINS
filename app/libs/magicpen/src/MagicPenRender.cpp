@@ -210,11 +210,13 @@ void MagicPenRender::SetTextureEdgeImage(cv::Mat texture_edge_image_rgba) {
     _texture_edge_image_rgba = texture_edge_image_rgba;
 }
 
-void MagicPenRender::Draw(MagicPen3DModel *pModel, float timeStampSec) {
+void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
 
     if (!pModel->_image_rgba.data) {
         return;
     }
+
+    glEnable(GL_DEPTH_TEST);
 
     // load and create a texture
     // -------------------------
@@ -274,7 +276,7 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, float timeStampSec) {
 
     // render
     // ------
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearColor(1.0f, 1.0f, 1.0f, .0f);
 #ifdef _WIN32
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #endif

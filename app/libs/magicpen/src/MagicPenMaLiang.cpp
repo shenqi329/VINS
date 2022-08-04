@@ -301,7 +301,7 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	return true;
 }
 
-void MagicPenMaLiang::Draw(float timeStampSec) {
+void MagicPenMaLiang::Draw(double timeStampSec) {
     _render.Draw(&_3dModel, timeStampSec);
 }
 

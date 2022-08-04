@@ -24,7 +24,7 @@ public:
 
     void SetTextureEdgeImage(cv::Mat texture_edge_image_rgba);
 
-    void Draw(MagicPen3DModel *model, float timeStampSec);
+    void Draw(MagicPen3DModel *model, double timeStampSec);
 private:
 
     void InitProgram();

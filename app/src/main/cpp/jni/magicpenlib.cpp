@@ -89,14 +89,6 @@ Java_com_example_vins_MagicPenJNI_init(JNIEnv *env, jclass instance) {
 
 }
 
-double timeStampToSec(long timeStamp) {
-    long us = timeStamp / 1000;
-    long ms = us / 1000;
-    long s = ms / 1000;
-    ms = ms % 1000;
-    return (double)s + (double)ms / 1000.f;
-}
-
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_vins_MagicPenJNI_setEdgeImageByte(JNIEnv *env, jclass type, jbyteArray bytesArray) {
@@ -169,8 +161,6 @@ Java_com_example_vins_MagicPenJNI_onImageAvailable(JNIEnv *env, jclass type,
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_vins_MagicPenJNI_draw(JNIEnv *env, jclass type, long timeStamp)
-{
-    double timeStampSec = timeStampToSec(timeStamp);
-    magicPenMaLiang.Draw(timeStampSec);
+Java_com_example_vins_MagicPenJNI_draw(JNIEnv *env, jclass type, jdouble timeStamp) {
+    magicPenMaLiang.Draw(timeStamp);
 }

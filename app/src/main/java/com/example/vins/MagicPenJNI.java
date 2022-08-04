@@ -25,5 +25,5 @@ public class MagicPenJNI implements Serializable {
                                                float virtualCamDistance,
                                                byte[] bytes, boolean getData);
 
-    public static native void draw(long timeStamp);
+    public static native void draw(double timeStampSecond);
 }

@@ -20,7 +20,7 @@ public:
 
     void setEdgeImageByte(std::vector<uchar> data);
 
-    void Draw(float timeStampSec);
+    void Draw(double timeStampSec);
 
 	MagicPen3DModel *Get3DModel();
 private:
