@@ -152,6 +152,7 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
     protected void onPause() {
         super.onPause();
         CameraUtil.releaseCamera();
+        System.exit(0);
     }
 
     private byte[] getFromRaw() {

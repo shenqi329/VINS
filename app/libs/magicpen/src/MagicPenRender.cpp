@@ -279,6 +279,8 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
     glClearColor(1.0f, 1.0f, 1.0f, .0f);
 #ifdef _WIN32
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#else
+    glClear(GL_DEPTH_BUFFER_BIT);
 #endif
     // bind Texture
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -288,36 +290,29 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
 
     // camera/view transformation
     glm::mat4 view = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-    float radius = 3.0f;
+    float angle = 0;//timeStampSec * 20;
 
-#if 1
-    float camX   = sin(timeStampSec) * radius;
-    float camZ   = cos(timeStampSec) * radius;
-#else
-    float camX   = sin(0) * radius;
-    float camZ   = cos(0) * radius;
-#endif
 #ifdef ANDROID
     glm::vec3 up = glm::vec3(0.0f, -1.0f, 0.0f);
 #else
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 #endif
-    view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f, 0.0f, 0.0f), up);
+    view = glm::lookAt(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), up);
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "view"), 1, GL_FALSE, &view[0][0]);
 
     glm::mat4 model;
 
     glBindVertexArray(_VAO);
     model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-    //model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
     glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
 	glBindVertexArray(_VAO);
 	model = glm::mat4(1.0f);
+    model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
 	model = glm::translate(model, glm::vec3(0.0f, 0.0f, -0.10001f));
-	//model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
 	glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
     glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
@@ -326,9 +321,11 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
 
     glBindVertexArray(_VAO_edge);
     model = glm::mat4(1.0f);
-    //model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
     glDrawElements(GL_TRIANGLES, pModel->_indices_side_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
     glDeleteTextures(1, &texture);
+
+    glDisable(GL_DEPTH_TEST);
 }
