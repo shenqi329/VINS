@@ -1,6 +1,10 @@
 #include "MagicPenMaLiang.h"
 #include <opencv2/imgproc.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/video/tracking.hpp>
+#include <iostream>
 #include "polypartition.h"
 
 #define PI 3.14159265
@@ -131,13 +135,72 @@ void MagicPenMaLiang::setEdgeImageByte(std::vector<uchar> data) {
 	_render.SetTextureEdgeImage(edge_texture_image_rgba);
 }
 
+void MagicPenMaLiang::setRotate(float x, float y) {
+	_rotate_x = x;
+	_rotate_y = y;
+}
+
+void reduceVector(std::vector<cv::Point2f> &v, std::vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < int(v.size()); i++)
+        if (status[i])
+            v[j++] = v[i];
+    v.resize(j);
+}
+
 bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_side_height) {
 
-    if (_init_image) {
+	if(_init_image) {
+		
+		cv::Mat image_gray;
+		cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+		std::vector<uchar> status;
+		std::vector<cv::Point2f> cur_image_corners;
+		std::vector<float> err;
+	
+		cv::calcOpticalFlowPyrLK(_pre_image_gray, image_gray, _pre_image_corners, cur_image_corners, status, err);
+
+		std::vector<cv::Point2f> pre_image_corners(_pre_image_corners);
+		
+		reduceVector(pre_image_corners, status);
+		reduceVector(cur_image_corners, status);
+
+        LOGI("calcOpticalFlowPyrLK match_corners:%d", pre_image_corners.size());
+        if (pre_image_corners.size() < 4) {
+            return false;
+        }
+
+		cv::Mat homography = cv::findHomography(pre_image_corners, cur_image_corners, cv::RANSAC, 5);
+
+		if(!homography.empty()) {
+
+			double intrinsic[9] = { 284.0,       0,             160.0,
+									0,          284.0,          180.0,
+                                    0,           0,             1};
+			cv::Mat matIntrinsic(3, 3, CV_64FC1, intrinsic);
+			std::vector<cv::Mat> r, t, n;
+			cv::decomposeHomographyMat(homography, matIntrinsic, r, t, n);
+			
+			std::cout << "r0:\n" << r[0] << std::endl;
+			std::cout << "t0:\n" << t[0] << std::endl;
+
+			double* pr = r[0].ptr<double>(0);
+			double* pt = t[0].ptr<double>(0);
+			_transformM = glm::mat4(
+				pr[0], pr[1], pr[2], pt[0],
+				pr[3], pr[4], pr[5], pt[1],
+				pr[6], pr[7], pr[8], pt[2],
+				0.0f,  0.0f,  0.0f,  1.0f
+			);
+            //_transformM = glm::inverse(_transformM);
+		}
+
         return false;
-    }
+	}
 
 	_image = image;
+
 	_texture_side_width = texture_side_width;
 	_texture_side_height = texture_side_height;
 
@@ -157,8 +220,10 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
         return false;
     }
 
-	// 获取白色区域灰度图，用于后续检测
+	
 	cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+
+	// 获取白色区域灰度图，用于后续检测
 	image_gray(maxWhiteRect).copyTo(detected_edges);
 
     //![reduce_noise]
@@ -170,7 +235,7 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 
     //![canny]
     /// Canny detector
-    cv::Canny(detected_edges, detected_edges, threshold, threshold*ratio, kernel_size);
+    cv::Canny(detected_edges, detected_edges, _threshold, _threshold*_ratio, _kernel_size);
     //![canny]
 
 	cv::imwrite("/storage/emulated/0/SBML/Canny_detected_edges.jpg",detected_edges);
@@ -219,6 +284,30 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	if (maxAreaIndex < 0) {
 		return false;
 	}
+
+    cv::RotatedRect minAreaRect = cv::minAreaRect(contours[maxAreaIndex]);
+    //LOGI("maxArea width = %f, height = %f, angle = %f, center.x = %f , center.y = %f",
+    //     minAreaRect.size.width, minAreaRect.size.height, minAreaRect.angle, minAreaRect.center.x, minAreaRect.center.y);
+
+	_ROI = minAreaRect.boundingRect();
+    _pre_image_gray = image_gray;
+    // 获取用于跟踪的特征点
+    _pre_image_corners.clear();
+    cv::goodFeaturesToTrack(_pre_image_gray(_ROI), _pre_image_corners,
+                            50, 0.01, 3.0, cv::Mat(), 3, false, 0.04);
+    
+    LOGI("goodFeaturesToTrack=%d", _pre_image_corners.size());
+    if (_pre_image_corners.size() < 10) {
+        return false;
+    }
+
+    if (_init_image) {
+        _curMinAreaRect = minAreaRect;
+        return false;
+    } else {
+        _beginMinAreaRect = minAreaRect;
+        _curMinAreaRect = minAreaRect;
+    }
 
 	cv::Mat contours_img(detected_edges.size(), CV_8U, cv::Scalar(0));
 	drawContours(contours_img, contours, maxAreaIndex, cv::Scalar(255), 1);
@@ -302,7 +391,7 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 }
 
 void MagicPenMaLiang::Draw(double timeStampSec) {
-    _render.Draw(&_3dModel, timeStampSec);
+    _render.Draw(&_3dModel, timeStampSec, _rotate_x, _rotate_y, _transformM);
 }
 
 void MagicPenMaLiang::Tick(float tick, MagicPenContour &contour) {

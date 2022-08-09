@@ -20,6 +20,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/)
 target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 target_link_libraries(

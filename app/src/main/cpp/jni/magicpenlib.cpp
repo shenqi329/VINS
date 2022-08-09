@@ -85,6 +85,8 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_example_vins_MagicPenJNI_init(JNIEnv *env, jclass instance) {
 
+    std::cout.rdbuf(&g_MyStreamBuf);
+
     magicPenMaLiang.Init();
 
 }
@@ -99,6 +101,13 @@ Java_com_example_vins_MagicPenJNI_setEdgeImageByte(JNIEnv *env, jclass type, jby
     std::vector<uchar> bytes(ptr, ptr + length);
 
     magicPenMaLiang.setEdgeImageByte(bytes);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_vins_MagicPenJNI_setRotate(JNIEnv *env, jclass type,
+                                                   jfloat x, jfloat y) {
+    magicPenMaLiang.setRotate(x, y);
 }
 
 extern "C"
@@ -153,10 +162,17 @@ Java_com_example_vins_MagicPenJNI_onImageAvailable(JNIEnv *env, jclass type,
     assert(rotatedRgba.size().width == 320);
     assert(rotatedRgba.size().height == 360);
 
+#if 1
     bool magicPenSuccess = magicPenMaLiang.Magic(rotatedBGR, 105, 464);
     if (magicPenSuccess) {
         LOGI("magicPenSuccess");
     }
+#else
+    const std::string path = "/storage/emulated/0/Android/data/com.example.vins/files/";
+    std::ostringstream oss;
+    oss << path << timeStamp << ".jpg";
+    cv::imwrite(oss.str(), rotatedBGR);
+#endif
 }
 
 extern "C"

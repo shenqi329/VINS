@@ -14,6 +14,8 @@
 #include <GLFW/glfw3.h>
 #endif
 
+#include <glm/glm.hpp>
+
 #include "MagicPen3DModel.h"
 
 class MagicPenRender {
@@ -24,7 +26,8 @@ public:
 
     void SetTextureEdgeImage(cv::Mat texture_edge_image_rgba);
 
-    void Draw(MagicPen3DModel *model, double timeStampSec);
+    void Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY,
+			  glm::mat4 transformM);
 private:
 
     void InitProgram();
@@ -41,6 +44,11 @@ private:
     GLuint  _texture_edge;
 
     cv::Mat _texture_edge_image_rgba;
+
+	bool _standInit = false;
+	float _init_rotate_x;
+	float _init_time;
+	glm::mat4 _stand_model;
 };
 
 

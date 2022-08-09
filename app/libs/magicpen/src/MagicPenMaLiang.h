@@ -18,6 +18,8 @@ public:
 	
 	bool Magic(cv::Mat image, int texture_side_width, int texture_side_height);
 
+    void setRotate(float x, float y);
+
     void setEdgeImageByte(std::vector<uchar> data);
 
     void Draw(double timeStampSec);
@@ -45,6 +47,11 @@ private:
 #endif
 private:
 	cv::Mat _image;
+	cv::Mat _pre_image_gray;
+	cv::Rect _ROI;
+	std::vector<cv::Point2f>  _pre_image_corners;
+
+	glm::mat4 _transformM = glm::mat4(1.0f);
 	
 	int _texture_side_width;
 	
@@ -64,12 +71,16 @@ private:
     bool _init_image = false;
 
 	float _tickSum = 0.0f;
+
+    float _rotate_x = 0;
+    float _rotate_y = 0;
+
+    cv::RotatedRect _beginMinAreaRect;
+    cv::RotatedRect _curMinAreaRect;
 	
-	static const int threshold = 100;
-	
-	static const int ratio = 3;
-	
-	static const int kernel_size = 3;
+	static const int _threshold = 100;
+	static const int _ratio = 3;
+	static const int _kernel_size = 3;
 };
 
 #endif

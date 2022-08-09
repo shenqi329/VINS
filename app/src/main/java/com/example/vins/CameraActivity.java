@@ -1,10 +1,15 @@
 package com.example.vins;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,7 +40,7 @@ import com.jscheng.scamera.widget.CameraGLSurfaceView;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
 
-public class CameraActivity extends Activity implements Camera.PreviewCallback, CameraGLSurfaceView.CameraGLSurfaceViewCallback {
+public class CameraActivity extends Activity implements Camera.PreviewCallback, CameraGLSurfaceView.CameraGLSurfaceViewCallback, SensorEventListener {
     
     private final static int REQUEST_CODE = 1;
     private final static int MSG_START_PREVIEW = 1;
@@ -71,6 +76,14 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
     private Size mPreviewSize;
     private Handler mCameraHanlder;
 
+    private SensorManager sensorManager;
+    private Sensor magneticSensor;
+    private Sensor accelerometerSensor;
+    private float[] gravity;
+    private float[] r;
+    private float[] geomagnetic;
+    private float[] values;
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
@@ -102,6 +115,23 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         initViews();
 
         MagicPenJNI.setEdgeImageByte(getFromRaw());
+
+
+        /**
+         * 初始化传感器
+         * */
+        sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+        //获取Sensor
+        magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        //初始化数组
+        gravity = new float[3];//用来保存加速度传感器的值
+        r = new float[9];//
+        geomagnetic = new float[3];//用来保存地磁传感器的值
+        values = new float[3];//用来保存最终的结果
+
+        sensorManager.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_GAME);
     }
 
     public void startPreview() {
@@ -291,5 +321,35 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         if (requestCode == requestCode ) {
             mCameraHanlder.sendEmptyMessage(MSG_START_PREVIEW);
         }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            geomagnetic = event.values;
+        }
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            gravity = event.values;
+            getOritation();
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
+    /**
+     * 获取手机旋转角度
+     */
+    public void getOritation() {
+        // r从这里返回
+        SensorManager.getRotationMatrix(r, null, gravity, geomagnetic);
+        //values从这里返回
+        SensorManager.getOrientation(r, values);
+        //提取数据
+        double degreeX = Math.toDegrees(values[1]);
+        double degreeY = Math.toDegrees(values[2]);
+        MagicPenJNI.setRotate((float) degreeX, (float)degreeY);
     }
 }

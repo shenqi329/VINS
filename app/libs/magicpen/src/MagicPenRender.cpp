@@ -16,7 +16,6 @@
 
 #endif
 
-#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "MagicPenRender.h"
@@ -210,11 +209,30 @@ void MagicPenRender::SetTextureEdgeImage(cv::Mat texture_edge_image_rgba) {
     _texture_edge_image_rgba = texture_edge_image_rgba;
 }
 
-void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
+void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec, float cameraRotateX, float CameraRotateY,
+                          glm::mat4 transformM) {
 
     if (!pModel->_image_rgba.data) {
         return;
     }
+	if (!_standInit) {
+		_standInit = true;
+		_init_rotate_x = 90 + cameraRotateX;
+		_init_time = (float)timeStampSec;
+		_stand_model = glm::mat4(1.0f);
+	} else {
+		if (timeStampSec - _init_time < 1.f ) {
+			_stand_model = glm::mat4(1.0f);
+			float angle = - ((90 + cameraRotateX) * (timeStampSec - _init_time) / 1.f);
+			_stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
+		} else {
+            _stand_model = glm::mat4(1.0f);
+            float angle = - (90 + cameraRotateX);
+            _stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
+        }
+	}
+
+    float scale = 1.0f;//curMinAreaRect.size.width / beginMinAreaRect.size.width;
 
     glEnable(GL_DEPTH_TEST);
 
@@ -298,6 +316,8 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 #endif
     view = glm::lookAt(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), up);
+	view = transformM * view;
+
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "view"), 1, GL_FALSE, &view[0][0]);
 
     glm::mat4 model;
@@ -305,6 +325,8 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
     glBindVertexArray(_VAO);
     model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::scale(model,glm::vec3(scale, scale, scale));
+	model = _stand_model * model;
     //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
     glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
@@ -312,6 +334,8 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
 	glBindVertexArray(_VAO);
 	model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::scale(model,glm::vec3(scale, scale, scale));
+	model = _stand_model * model;
 	model = glm::translate(model, glm::vec3(0.0f, 0.0f, -0.10001f));
 	glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
     glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
@@ -322,6 +346,8 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec) {
     glBindVertexArray(_VAO_edge);
     model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::scale(model,glm::vec3(scale, scale, scale));
+	model = _stand_model * model;
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
     glDrawElements(GL_TRIANGLES, pModel->_indices_side_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
