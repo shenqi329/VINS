@@ -10,18 +10,6 @@
 
 #include "MagicPenRender.h"
 
-class MagicPenContourHander
-{
-public:
-	// 最原始的轮廓
-	MagicPenContour _origin_contour;
-	std::vector<MagicPenLimbInfo> _limbInfo;
-	
-	// 分割轮廓（躯干、四肢）
-	std::vector<MagicPenContour> _division_contour;
-	std::list<TPPLPoly> _triangulate_result;
-};
-
 class MagicPenMaLiang
 {
 public:
@@ -41,13 +29,12 @@ private:
 	// 连接临近的edge
 	void ConnectAdjacentEdge(cv::Mat &detected_edges);
 
-	// 计算填充满多边形的三角形
-	void PolyTriangulate(MagicPenContourHander &hander);
-
+#if 0
 	// 寻找肢体(arms and legs)
 	void FindLimbs(MagicPenContourHander &hander);
 
 	void CalculationLimbInfoType(MagicPenContourHander &hander, cv::Rect boundRect);
+#endif
 
 #ifdef MagicPenMaLiang_DEBUG
 	void ShowDebugWindows(cv::Mat detected_edges, cv::Mat &markers);

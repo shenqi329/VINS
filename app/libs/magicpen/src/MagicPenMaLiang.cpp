@@ -265,7 +265,7 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	cv::Mat	mask;
 
 	// 查找白色区域
-	std::vector<int> lower_bound = {155, 155, 155};
+	std::vector<int> lower_bound = {100, 100, 100};
     std::vector<int> upper_bound = {255, 255, 255};
 	cv::inRange(image, lower_bound, upper_bound, mask);
 
@@ -418,9 +418,9 @@ static TPPLOrientation GetOrientation(std::vector<cv::Point> &contour, long star
 	}
 	return TPPL_ORIENTATION_NONE;
 }
-
-void MagicPenMaLiang::CalculationLimbInfoType(MagicPenContourHander &hander, cv::Rect boundRect) {
 #if 0
+void MagicPenMaLiang::CalculationLimbInfoType(MagicPenContourHander &hander, cv::Rect boundRect) {
+
 	size_t max_point_index = (limbInfo.start_point_index + limbInfo.max_point_offset) % _origin_contour.contour_points.size();
 
 	cv::Point2f start_point = _origin_contour.contour_points[limbInfo.start_point_index].point;
@@ -447,12 +447,10 @@ void MagicPenMaLiang::CalculationLimbInfoType(MagicPenContourHander &hander, cv:
 			limbInfo.type = MagicPenContourLeg_Right;
 		}
 	}
-#endif
 }
 
 void MagicPenMaLiang::FindLimbs(MagicPenContourHander &hander) {
 
-#if 0
 	std::vector<MagicPenLimbInfo> limbInfos;
 
 	cv::RotatedRect minAreaRect = cv::minAreaRect(contour);
@@ -533,38 +531,8 @@ void MagicPenMaLiang::FindLimbs(MagicPenContourHander &hander) {
 		CalculationLimbInfoType(bestInfo, rect);
 		_limbInfo.push_back(bestInfo);
 	}
+}
 #endif
-}
-
-
-void MagicPenMaLiang::PolyTriangulate(MagicPenContourHander &hander) {
-
-    TPPLPartition pp;
-
-	TPPLPolyList inpolys;
-
-	hander._triangulate_result.clear();
-
-	for (size_t i = 0; i < hander._division_contour.size(); i++) {
-		MagicPenContour contour = hander._division_contour[i];
-		
-		TPPLPoly poly;
-		poly.Init(contour.contour_points.size());
-		poly.SetHole(false);
-
-		int reverseIndex = contour.contour_points.size() - 1;
-		for (size_t j = 0; j < contour.contour_points.size(); j++) {
-			
-			int origin_index = contour.contour_points[reverseIndex - j].index;
-			poly[j].x = contour.contour_points[reverseIndex - j].point.x;
-			poly[j].y = contour.contour_points[reverseIndex - j].point.y;
-			poly[j].id = origin_index;
-		}
-
-		inpolys.push_back(poly);
-	}
-    pp.Triangulate_EC(&inpolys, &hander._triangulate_result);
-}
 
 void MagicPenMaLiang::ConnectAdjacentEdge(cv::Mat &detected_edges) {
 	for (int row = 1; row < detected_edges.rows - 1; row++) {

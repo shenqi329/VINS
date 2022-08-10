@@ -105,6 +105,8 @@ public:
 public:
 	void InitFromContours(std::vector< std::vector<cv::Point> > contours, 
 		float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba);
+private:
+    void ClearLimbModel();
 };
 
 

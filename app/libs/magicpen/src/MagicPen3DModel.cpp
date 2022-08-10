@@ -261,8 +261,17 @@ void MagicPen3DLimbModel::FreeVertice() {
 
 // MagicPenModel3D end
 
+void MagicPen3DModel::ClearLimbModel() {
+    for (int i = 0; i < _3dModels.size(); ++i) {
+        delete _3dModels[i];
+    }
+    _3dModels.clear();
+}
+
 void MagicPen3DModel::InitFromContours(std::vector< std::vector<cv::Point> > contours, 
 	float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba) {
+
+    ClearLimbModel();
 
 	for (size_t contour_index = 0; contour_index < contours.size(); contour_index++) {
 		MagicPen3DLimbModel *p3DModel = new MagicPen3DLimbModel();
