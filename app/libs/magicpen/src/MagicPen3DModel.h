@@ -49,20 +49,36 @@ struct MagicPenContour {
 };
 
 // 3D模型
-class MagicPen3DModel {
+class MagicPen3DLimbModel {
+
 public:
+	void InitFromContours(std::vector<cv::Point> contour, float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height,
+              cv::Mat image_rgba);
+	 
+	~MagicPen3DLimbModel();
+
+private:
     void Init(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour,
               int cols, int rows, int texture_side_width, int texture_side_height,
               cv::Mat image_rgba
               );
+   
+	void PolyTriangulate();
 
-    ~MagicPen3DModel();
-private:
     void InitVerticesFront(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, int cols, int rows);
 
     void InitVerticesEdge(MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour, int cols, int rows, int texture_side_width, int texture_height);
 
     void FreeVertice();
+
+public:
+	// 最原始的轮廓
+	MagicPenContour _origin_contour;
+	std::vector<MagicPenLimbInfo> _limbInfo;
+	
+	// 分割轮廓（躯干、四肢）
+	std::vector<MagicPenContour> _division_contour;
+	std::list<TPPLPoly> _triangulate_result;
 
 public:
     cv::Mat _image_rgba;
@@ -80,6 +96,15 @@ public:
 
     int _indices_side_size = 0;
     int* _indices_side = nullptr;
+};
+
+class MagicPen3DModel {
+public:
+	std::vector<MagicPen3DLimbModel*> _3dModels;
+
+public:
+	void InitFromContours(std::vector< std::vector<cv::Point> > contours, 
+		float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba);
 };
 
 

@@ -209,8 +209,13 @@ void MagicPenRender::SetTextureEdgeImage(cv::Mat texture_edge_image_rgba) {
     _texture_edge_image_rgba = texture_edge_image_rgba;
 }
 
-void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec, float cameraRotateX, float CameraRotateY,
-                          glm::mat4 transformM) {
+void MagicPenRender::Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY) {
+	for (size_t i = 0; i < model->_3dModels.size(); i++) {
+		Draw(model->_3dModels[i],  timeStampSec, cameraRotateX, CameraRotateY);
+	}
+}
+
+void MagicPenRender::Draw(MagicPen3DLimbModel *pModel, double timeStampSec, float cameraRotateX, float CameraRotateY) {
 
     if (!pModel->_image_rgba.data) {
         return;
@@ -295,11 +300,8 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec, float ca
     // render
     // ------
     glClearColor(1.0f, 1.0f, 1.0f, .0f);
-#ifdef _WIN32
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#else
+
     glClear(GL_DEPTH_BUFFER_BIT);
-#endif
     // bind Texture
     glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -316,7 +318,6 @@ void MagicPenRender::Draw(MagicPen3DModel *pModel, double timeStampSec, float ca
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 #endif
     view = glm::lookAt(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), up);
-	view = transformM * view;
 
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "view"), 1, GL_FALSE, &view[0][0]);
 

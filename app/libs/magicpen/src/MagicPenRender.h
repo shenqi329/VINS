@@ -26,9 +26,9 @@ public:
 
     void SetTextureEdgeImage(cv::Mat texture_edge_image_rgba);
 
-    void Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY,
-			  glm::mat4 transformM);
+	void Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY);
 private:
+	 void Draw(MagicPen3DLimbModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY);
 
     void InitProgram();
     void InitBuffer();

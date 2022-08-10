@@ -5,7 +5,103 @@
 #include "MagicPen3DModel.h"
 // MagicPenModel3D begin
 
-void MagicPen3DModel::Init(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour,
+void MagicPen3DLimbModel::PolyTriangulate() {
+
+    TPPLPartition pp;
+
+	TPPLPolyList inpolys;
+
+	_triangulate_result.clear();
+
+	for (size_t i = 0; i < _division_contour.size(); i++) {
+		MagicPenContour contour = _division_contour[i];
+		
+		TPPLPoly poly;
+		poly.Init(contour.contour_points.size());
+		poly.SetHole(false);
+
+		int reverseIndex = contour.contour_points.size() - 1;
+		for (size_t j = 0; j < contour.contour_points.size(); j++) {
+			
+			int origin_index = contour.contour_points[reverseIndex - j].index;
+			poly[j].x = contour.contour_points[reverseIndex - j].point.x;
+			poly[j].y = contour.contour_points[reverseIndex - j].point.y;
+			poly[j].id = origin_index;
+		}
+
+		inpolys.push_back(poly);
+	}
+    pp.Triangulate_EC(&inpolys, &_triangulate_result);
+}
+
+
+void MagicPen3DLimbModel::InitFromContours(std::vector<cv::Point> contour, float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height,
+              cv::Mat image_rgba)
+{
+	_origin_contour.contour_points.resize(contour.size());
+	for (size_t i = 0; i < contour.size(); i++){
+		_origin_contour.contour_points[i].point.x = contour[i].x + offset_x;
+		_origin_contour.contour_points[i].point.y = contour[i].y + offset_y;
+	}
+
+	// 查找肢体(arms and legs)
+	//FindLimbs(contours[maxAreaIndex]);
+
+	MagicPenContour body_contour;
+	_division_contour.clear();
+	for (size_t i = 0; i < _origin_contour.contour_points.size(); i++) {
+		
+		bool isLimb = false;
+		for (size_t j = 0; j < _limbInfo.size(); j++) {
+
+			size_t end_index = _limbInfo[j].start_point_index + _limbInfo[j].end_point_offset;
+
+			if(i > _limbInfo[j].start_point_index && i < end_index) {
+				isLimb = true;
+			}
+		}
+
+		if (isLimb) {
+			continue;
+		}
+
+		MagicPenPoint point;
+		point.point = _origin_contour.contour_points[i].point;
+		point.index = i;
+
+		_origin_contour.contour_points[i].indexs[0] = _division_contour.size();
+		_origin_contour.contour_points[i].indexs[1] = body_contour.contour_points.size();
+
+		body_contour.contour_points.push_back(point);
+		body_contour.limb_info.type = MagicPenContourBody;
+	}
+	_division_contour.push_back(body_contour);
+
+	for (size_t i = 0; i < _limbInfo.size(); i++) {
+		MagicPenContour limbContour;
+		MagicPenPoint point;
+
+		for (size_t j = 0; j <= _limbInfo[i].end_point_offset; j++) {
+			size_t index = (_limbInfo[i].start_point_index + j) % _origin_contour.contour_points.size();
+			point.point = _origin_contour.contour_points[index].point;
+			point.index = index;
+
+			_origin_contour.contour_points[index].indexs[0] = _division_contour.size();
+			_origin_contour.contour_points[index].indexs[1] = limbContour.contour_points.size();
+
+			limbContour.contour_points.push_back(point);
+		}
+		limbContour.limb_info = _limbInfo[i];
+		_division_contour.push_back(limbContour);
+	}
+
+	// 三角形填充多边形
+	PolyTriangulate();
+
+	Init(_triangulate_result, _origin_contour, _division_contour, cols, rows, texture_side_width, texture_side_height, image_rgba);
+}
+
+void MagicPen3DLimbModel::Init(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour,
                            int cols, int rows,  int texture_side_width, int texture_side_height,
                            cv::Mat image_rgba
                            ) {
@@ -19,7 +115,7 @@ void MagicPen3DModel::Init(std::list<TPPLPoly> triangles, MagicPenContour origin
     InitVerticesEdge(origin_contour, division_contour, cols, rows, texture_side_width, texture_side_height);
 }
 
-void MagicPen3DModel::InitVerticesFront(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, int cols, int rows) {
+void MagicPen3DLimbModel::InitVerticesFront(std::list<TPPLPoly> triangles, MagicPenContour origin_contour, int cols, int rows) {
 
     _vertices_front_size = sizeof(MagicPenVertice) * 3 * triangles.size();
     _vertices_front = (MagicPenVertice*)malloc(_vertices_front_size);
@@ -59,7 +155,7 @@ void MagicPen3DModel::InitVerticesFront(std::list<TPPLPoly> triangles, MagicPenC
 
 }
 
-void MagicPen3DModel::InitVerticesEdge(MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour, int cols, int rows, int texture_side_width, int texture_side_height) {
+void MagicPen3DLimbModel::InitVerticesEdge(MagicPenContour origin_contour, std::vector<MagicPenContour> division_contour, int cols, int rows, int texture_side_width, int texture_side_height) {
 
     _vertices_side_size = sizeof(MagicPenVertice) * 2 * origin_contour.contour_points.size();
     _vertices_side = (MagicPenVertice*)malloc(_vertices_side_size);
@@ -128,13 +224,13 @@ void MagicPen3DModel::InitVerticesEdge(MagicPenContour origin_contour, std::vect
     }
 }
 
-MagicPen3DModel::~MagicPen3DModel() {
+MagicPen3DLimbModel::~MagicPen3DLimbModel() {
 
     FreeVertice();
 
 }
 
-void MagicPen3DModel::FreeVertice() {
+void MagicPen3DLimbModel::FreeVertice() {
 
     // vertices front
     if(_vertices_front) {
@@ -164,3 +260,13 @@ void MagicPen3DModel::FreeVertice() {
 }
 
 // MagicPenModel3D end
+
+void MagicPen3DModel::InitFromContours(std::vector< std::vector<cv::Point> > contours, 
+	float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba) {
+
+	for (size_t contour_index = 0; contour_index < contours.size(); contour_index++) {
+		MagicPen3DLimbModel *p3DModel = new MagicPen3DLimbModel();
+		p3DModel->InitFromContours(contours[contour_index], offset_x, offset_y, cols, rows, texture_side_width,  texture_side_height, image_rgba);
+		_3dModels.push_back(p3DModel);
+	}
+}
