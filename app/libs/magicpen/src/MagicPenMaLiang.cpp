@@ -201,27 +201,33 @@ bool isContoursVaild(std::vector< std::vector<cv::Point>> &contours, int cols, i
 
 	cv::Rect boundingRect = cv::boundingRect(all_points);
 	if (boundingRect.width > cols / 1.5) {
+        LOGI("boundingRect.width big");
 		return false;
 	}
 
 	if (boundingRect.width < cols / 8) {
+        LOGI("boundingRect.width small");
 		return false;
 	}
 
 	if (boundingRect.height > rows / 1.5) {
+        LOGI("boundingRect.height width");
 		return false;
 	}
 
 	if (boundingRect.height < rows / 8) {
+        LOGI("boundingRect.height small");
 		return false;
 	}
 
 	float centerXDistance = abs(boundingRect.x + boundingRect.width/2 - cols/2);
 	if (centerXDistance > cols / 6) {
+        LOGI("XDistance big");
 		return false;
 	}
 	float centerYDistance = abs(boundingRect.y + boundingRect.height/2 - rows/2);
 	if (centerYDistance > rows / 6) {
+        LOGI("YDistance big");
 		return false;
 	}
 	
@@ -247,53 +253,47 @@ void MagicPenMaLiang::setRotate(float x, float y) {
 	_rotate_y = y;
 }
 
-bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_side_height) {
-
-	if(_init_image) {
-        return false;
-	}
-
-	_image = image;
-
-	_texture_side_width = texture_side_width;
-	_texture_side_height = texture_side_height;
-
-    cv::imwrite("/storage/emulated/0/SBML/origin.jpg",image);
-
+std::vector<std::vector<cv::Point> > MagicPenMaLiang::findContours(cv::Mat image , cv::Rect &validRect) {
+    if(!_init_image) {
+        cv::imwrite("/storage/emulated/0/SBML/origin.jpg",image);
+    }
 	cv::Mat image_gray;
 	cv::Mat	detected_edges;
 	cv::Mat	mask;
 
-	// 查找白色区域
+	// 查找白色区域，作为有效的检测区域
 	std::vector<int> lower_bound = {100, 100, 100};
     std::vector<int> upper_bound = {255, 255, 255};
 	cv::inRange(image, lower_bound, upper_bound, mask);
 
-	cv::Rect maxWhiteRect;
-	if(!GetMaskMaxWhiteRect(mask , maxWhiteRect)) {
-        return false;
+    if(!GetMaskMaxWhiteRect(mask , validRect)) {
+        LOGI("GetMaskMaxWhiteRect Fail");
+        return std::vector<std::vector<cv::Point> >(0);
     }
-
 	
 	cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 
 	// 获取白色区域灰度图，用于后续检测
-	image_gray(maxWhiteRect).copyTo(detected_edges);
+    image_gray(validRect).copyTo(detected_edges);
 
     //![reduce_noise]
     /// Reduce noise with a kernel 3x3
     // cv::blur(detected_edges, detected_edges, cv::Size(3,3));
     //![reduce_noise]
-
-    cv::imwrite("/storage/emulated/0/SBML/detected_edges.jpg",detected_edges);
-
+    if(!_init_image) {
+        cv::imwrite("/storage/emulated/0/SBML/detected_edges.jpg", detected_edges);
+    }
     //![canny]
     /// Canny detector
     cv::Canny(detected_edges, detected_edges, 10, 200);
     //![canny]
-
-	cv::imwrite("/storage/emulated/0/SBML/Canny_detected_edges.jpg",detected_edges);
-
+    if(!_init_image) {
+#ifdef _WIN32
+		cv::imshow("detected_edges", detected_edges);
+#else
+        cv::imwrite("/storage/emulated/0/SBML/Canny_detected_edges.jpg", detected_edges);
+#endif
+    }
     ConnectAdjacentEdge(detected_edges);
 
 	// 查找轮廓
@@ -301,22 +301,120 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
     cv::findContours(detected_edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
 	if (contours.size() <= 0) {
-		return false;
+        LOGI("findContours zero");
+		return std::vector<std::vector<cv::Point> >(0);
 	}
 
 	ApproxPoly(contours);
 
-	findNearbyContours(contours, cv::Point(_image.cols / 2, _image.rows / 2));
-	
-	if(!isContoursVaild(contours, _image.cols, _image.rows)) {
-		return false;
-	}
-	
-	cv::Mat image_rgba;
-	cv::cvtColor(image, image_rgba, cv::COLOR_BGR2RGBA);
-	_3dModels.InitFromContours(contours, maxWhiteRect.x, maxWhiteRect.y, image.cols, image.rows, texture_side_width,  texture_side_height, image_rgba);
+	return contours;
+}
 
-    _init_image = true;
+cv::Rect MagicPenMaLiang::expandRect(cv::Rect src, float expand_value, cv::Mat image) {
+	if (src.x > 10) {
+		src.x -= 10;
+	} else {
+		src.x = 0;
+	}
+
+	int width = src.width + 20;
+	src.width = src.x + width <= image.cols ? width : image.cols - src.x;
+
+	if (src.y > 10) {
+		src.y -= 10;
+	} else {
+		src.y = 0;
+	}
+	int height = src.height + 20;
+	src.height = src.y + height <= image.cols ? height : image.rows - src.y;
+
+	return src;
+}
+
+bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_side_height) {
+
+	if(!_init_image) {
+		
+		// 获取轮廓
+		cv::Rect validRect;
+		std::vector<std::vector<cv::Point> > contours = findContours(image, validRect);
+		if(contours.size() <= 0){
+			return false;
+		}
+#ifdef _WIN32
+		for (size_t i = 0; i < contours.size(); i++) {
+			cv::Mat dst = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
+			cv::drawContours(dst, contours, i , cv::Scalar(255.f));
+			char buffer[128];
+			sprintf(buffer, "contour_%d", i);
+			cv::imshow(buffer, dst);
+		}
+#endif
+
+        // 找到位于中心区域的轮廓
+        findNearbyContours(contours, cv::Point(image.cols / 2, image.rows / 2));
+
+        if(!isContoursVaild(contours, image.cols, image.rows)) {
+            LOGI("isContoursVaild Fail");
+            return false;
+        }
+
+        if(contours.size() <= 0){
+            return false;
+        }
+
+		std::vector<cv::Point> all_contour;
+		for (size_t i = 0; i < contours.size(); i++) {
+			all_contour.insert(all_contour.end(), contours[i].begin(), contours[i].end());
+		}
+		_rotatedRectROI = cv::minAreaRect(all_contour);
+        _ROI = _rotatedRectROI.boundingRect();
+        _ROI.x += validRect.x;
+        _ROI.y += validRect.y;
+
+        std::cout << "Init _ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
+        std::cout << "Init angle:" << _rotatedRectROI.angle << ", width:" << _rotatedRectROI.size.width << ", height:" << _rotatedRectROI.size.height << std::endl;
+
+		// 根据轮廓生成3D模型
+		cv::Mat image_rgba;
+		cv::cvtColor(image, image_rgba, cv::COLOR_BGR2RGBA);
+		_3dModels.InitFromContours(contours, validRect.x, validRect.y, image.cols, image.rows, texture_side_width,  texture_side_height, image_rgba);
+
+		_init_image = true;
+	} else {
+
+		// 获取轮廓
+		cv::Rect validRect;
+		std::vector<std::vector<cv::Point> > contours = findContours(image, validRect);
+
+        // 以ROI为中心点，找到位于中心区域的轮廓
+        findNearbyContours(contours, cv::Point(_ROI.x + _ROI.width / 2, _ROI.y + _ROI.height / 2));
+
+        if(contours.size() <= 0) {
+            return false;
+        }
+
+		std::vector<cv::Point> all_contour;
+		for (size_t i = 0; i < contours.size(); i++) {
+			all_contour.insert(all_contour.end(), contours[i].begin(), contours[i].end());
+		}
+		cv::RotatedRect rotatedRect = cv::minAreaRect(all_contour);
+		cv::Rect boundingRect = rotatedRect.boundingRect();
+		_ROI = boundingRect;
+        _ROI.x += validRect.x;
+        _ROI.y += validRect.y;
+
+        std::cout << "_ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
+        std::cout << "Init angle:" << rotatedRect.angle << ", width:" << rotatedRect.size.width << ", height:" << rotatedRect.size.height << std::endl;
+		
+		cv::Point2f points_begin[4];
+		cv::Point2f points_cur[4];
+
+		_rotatedRectROI.points(points_begin);
+		rotatedRect.points(points_cur);
+
+        return false;
+	}
 	return true;
 }
 
@@ -327,68 +425,6 @@ void MagicPenMaLiang::Draw(double timeStampSec) {
 
 	_render.Draw(&_3dModels, timeStampSec, _rotate_x, _rotate_y);
 }
-
-#ifdef MagicPenMaLiang_DEBUG
-void MagicPenMaLiang::ShowDebugWindows_Points() {
-#if 0
-	cv::Mat points = cv::Mat::zeros(_image.size(), CV_8U);
-    for (size_t i = 0; i < _origin_contour.contour_points.size(); i++) {
-
-		cv::circle(points, _origin_contour.contour_points[i].point, 1, cv::Scalar(255));
-    }
-	cv::imshow("Points", points);
-#endif
-}
-
-
-void MagicPenMaLiang::ShowDebugWindows_Triangulate() {
-#if 0
-	// Create the marker image for the watershed algorithm
-    cv::Mat triangulate = cv::Mat::zeros(_image.size(), CV_8U);
-
-    std::list<TPPLPoly>::iterator iter;
-
-    for(iter = _triangulate_result.begin(); iter != _triangulate_result.end() ;iter++) {
-        if(3 == iter->GetNumPoints()) {
-            cv::Point point_a(iter->GetPoints()[0].x, iter->GetPoints()[0].y);
-            cv::Point point_b(iter->GetPoints()[1].x, iter->GetPoints()[1].y);
-            cv::Point point_c(iter->GetPoints()[2].x, iter->GetPoints()[2].y);
-            cv::line(triangulate, point_a, point_b, cv::Scalar(255));
-            cv::line(triangulate, point_b, point_c, cv::Scalar(255));
-            cv::line(triangulate, point_c, point_a, cv::Scalar(255));
-        }
-    }
-    cv::imshow("Triangulate", triangulate);
-#endif
-}
-
-void MagicPenMaLiang::ShowDebugWindows(cv::Mat detected_edges, cv::Mat &markers) {
-	
-#if 0
-	ShowDebugWindows_Points();
-
-    ShowDebugWindows_Triangulate();
-
-	for (size_t i = 0; i < _limbInfo.size(); i++) {
-		cv::line(markers, _origin_contour.contour_points[_limbInfo[i].start_point_index].point, _origin_contour.contour_points[(_limbInfo[i].start_point_index + _limbInfo[i].end_point_offset) % _origin_contour.contour_points.size()].point, cv::Scalar(125), 2);
-		cv::circle(markers, _origin_contour.contour_points[_limbInfo[i].start_point_index].point, 1, 125);
-		//cv::circle(markers, contour[(i + minSteps)%contour.size()], 1, cv::Scalar(i % 125));
-	}
-	// Draw the background marker
-    cv::imshow("Markers", markers);
-
-    //![display]
-    cv::imshow("Edge Map", detected_edges);
-    //![display]
-#endif
-}
-#endif
-
-#if 0
-MagicPen3DModel *MagicPenMaLiang::Get3DModel() {
-	return &_3dModel;
-}
-#endif
 
 static TPPLOrientation GetOrientation(std::vector<cv::Point> &contour, long startIndex, long size) {
 	long i1, i2;

@@ -102,6 +102,7 @@ class MagicPen3DModel {
 public:
 	std::vector<MagicPen3DLimbModel*> _3dModels;
 
+	std::vector<std::vector<cv::Point> > _contours;
 public:
 	void InitFromContours(std::vector< std::vector<cv::Point> > contours, 
 		float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba);

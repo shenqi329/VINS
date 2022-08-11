@@ -269,7 +269,9 @@ void MagicPen3DModel::ClearLimbModel() {
 }
 
 void MagicPen3DModel::InitFromContours(std::vector< std::vector<cv::Point> > contours, 
-	float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba) {
+	float offset_x, float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba) {
+
+	_contours = contours;
 
     ClearLimbModel();
 

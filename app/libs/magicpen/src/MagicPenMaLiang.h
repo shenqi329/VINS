@@ -25,29 +25,22 @@ public:
     void Draw(double timeStampSec);
 
 private:
+
+	std::vector<std::vector<cv::Point> > findContours(cv::Mat image, cv::Rect &validRect);
 	
 	// 连接临近的edge
 	void ConnectAdjacentEdge(cv::Mat &detected_edges);
 
+	cv::Rect expandRect(cv::Rect src, float expand_value, cv::Mat image);
 #if 0
 	// 寻找肢体(arms and legs)
 	void FindLimbs(MagicPenContourHander &hander);
 
 	void CalculationLimbInfoType(MagicPenContourHander &hander, cv::Rect boundRect);
 #endif
-
-#ifdef MagicPenMaLiang_DEBUG
-	void ShowDebugWindows(cv::Mat detected_edges, cv::Mat &markers);
-	void ShowDebugWindows_Points();
-	void ShowDebugWindows_Triangulate();
-#endif
 private:
-	cv::Mat _image;
-
-	int _texture_side_width;
-	
-	int _texture_side_height;
-	
+	cv::RotatedRect _rotatedRectROI;
+	cv::Rect _ROI;
 	MagicPen3DModel _3dModels;
 
     MagicPenRender _render;

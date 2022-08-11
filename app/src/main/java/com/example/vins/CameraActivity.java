@@ -67,6 +67,7 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
     //private magicpenJNI mMaginPenJNI;
 
     long preImageTimeStamp = -1;
+    long firstTimeStamp = -1;
 
     private float virtualCamDistance = 4;
     private final float minVirtualCamDistance = 4;
@@ -282,6 +283,9 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         // 避免两张图相同的时间戳
         mCameraView.getSurfaceTexture().getTimestamp();
         long curImageTimeStamp = mCameraView.getSurfaceTexture().getTimestamp();
+        if (firstTimeStamp < 0) {
+            firstTimeStamp = curImageTimeStamp;
+        }
         if (preImageTimeStamp > 0) {
             long cost = curImageTimeStamp - preImageTimeStamp;
             if (curImageTimeStamp - preImageTimeStamp < 30*1000*1000) {
@@ -289,6 +293,10 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
             }
         }
         preImageTimeStamp = curImageTimeStamp;
+
+        if(curImageTimeStamp - firstTimeStamp < 1000000000) {
+            return;
+        }
 
         MagicPenJNI.onImageAvailable(imageWidth, imageHeight,
                 0, null,
