@@ -20,6 +20,43 @@
 #endif
 
 
+void OffsetCache::Reset() {
+
+}
+
+void OffsetCache::AddInfo(OffsetInfo info) {
+
+	float offset_x = info.offset_x - _validInfo.offset_x;
+	float offset_y= info.offset_y - _validInfo.offset_y;
+
+	if (abs(offset_x) > 20 || abs(offset_y) > 20) {
+		if(ignore_count < 2) {
+			ignore_count++;
+			return;
+		}else {
+			ignore_count = 0;
+		}
+	}
+	if(offset_x > 5.0f) {
+		info.offset_x = _validInfo.offset_x + 5;
+	} else if(offset_x < -5.0f) {
+		info.offset_x = _validInfo.offset_x - 5;
+	}
+
+	if(offset_y > 5.0f) {
+		info.offset_y = _validInfo.offset_y + 5;
+	} else if(offset_y < -5.0f) {
+		info.offset_y = _validInfo.offset_y - 5;
+	}
+
+	_validInfo = info;
+}
+
+OffsetInfo OffsetCache::GetValidOffsetInfo() {
+	return _validInfo;
+}
+
+
 // MagicPenMaLiang begin
 static void ApproxPoly(std::vector<std::vector<cv::Point> > &contours) {
 	
@@ -336,8 +373,7 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	if(!_init_image) {
 		
 		// 获取轮廓
-		cv::Rect validRect;
-		std::vector<std::vector<cv::Point> > contours = findContours(image, validRect);
+		std::vector<std::vector<cv::Point> > contours = findContours(image, _beginValidRect);
 		if(contours.size() <= 0){
 			return false;
 		}
@@ -367,18 +403,21 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 		for (size_t i = 0; i < contours.size(); i++) {
 			all_contour.insert(all_contour.end(), contours[i].begin(), contours[i].end());
 		}
-		_rotatedRectROI = cv::minAreaRect(all_contour);
-        _ROI = _rotatedRectROI.boundingRect();
-        _ROI.x += validRect.x;
-        _ROI.y += validRect.y;
+        _rotatedRectROIBegin = cv::minAreaRect(all_contour);
+        _ROI = _rotatedRectROIBegin.boundingRect();
+        _ROI.x += _beginValidRect.x;
+        _ROI.y += _beginValidRect.y;
+
+		_rotatedRectROIPre = _rotatedRectROIBegin;
+		_preValidRect = _beginValidRect;
 
         std::cout << "Init _ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
-        std::cout << "Init angle:" << _rotatedRectROI.angle << ", width:" << _rotatedRectROI.size.width << ", height:" << _rotatedRectROI.size.height << std::endl;
+        std::cout << "Init angle:" << _rotatedRectROIBegin.angle << ", width:" << _rotatedRectROIBegin.size.width << ", height:" << _rotatedRectROIBegin.size.height << std::endl;
 
 		// 根据轮廓生成3D模型
 		cv::Mat image_rgba;
 		cv::cvtColor(image, image_rgba, cv::COLOR_BGR2RGBA);
-		_3dModels.InitFromContours(contours, validRect.x, validRect.y, image.cols, image.rows, texture_side_width,  texture_side_height, image_rgba);
+		_3dModels.InitFromContours(contours, _beginValidRect.x, _beginValidRect.y, image.cols, image.rows, texture_side_width, texture_side_height, image_rgba);
 
 		_init_image = true;
 	} else {
@@ -404,16 +443,56 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
         _ROI.x += validRect.x;
         _ROI.y += validRect.y;
 
+		float scale = rotatedRect.size.area() / _rotatedRectROIBegin.size.area();
+		if(scale < 0.5 || scale > 1.5) {
+			_3dModels._offset_x = 0;
+			_3dModels._offset_y = 0;
+			_3dModels._scale = 1;
+			_ROI = cv::Rect(0, 0 , image.cols, image.rows);
+			return false;
+		}
+
         std::cout << "_ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
-        std::cout << "Init angle:" << rotatedRect.angle << ", width:" << rotatedRect.size.width << ", height:" << rotatedRect.size.height << std::endl;
-		
+        std::cout << "angle:" << rotatedRect.angle << ", width:" << rotatedRect.size.width << ", height:" << rotatedRect.size.height << std::endl;
+
 		cv::Point2f points_begin[4];
 		cv::Point2f points_cur[4];
 
-		_rotatedRectROI.points(points_begin);
+		_rotatedRectROIBegin.points(points_begin);
 		rotatedRect.points(points_cur);
 
-        return false;
+		if(points_begin[0].x > _rotatedRectROIBegin.center.x) {
+			auto tmp = points_begin[0];
+			points_begin[0] = points_begin[1];
+			points_begin[1] = points_begin[2];
+			points_begin[2] = points_begin[3];
+			points_begin[3] = tmp;
+		}
+		if(points_cur[0].x > rotatedRect.center.x) {
+			auto tmp = points_cur[0];
+			points_cur[0] = points_cur[1];
+			points_cur[1] = points_cur[2];
+			points_cur[2] = points_cur[3];
+			points_cur[3] = tmp;
+		}
+
+        float pre_x = ((points_begin[0].x + points_begin[3].x) / 2 + _beginValidRect.x);
+        float pre_y = ((points_begin[0].y + points_begin[3].y) / 2 + _beginValidRect.y);
+
+        float cur_x = ((points_cur[0].x + points_cur[3].x) / 2 + validRect.x);
+        float cur_y = ((points_cur[0].y + points_cur[3].y) / 2 + validRect.y);
+
+		OffsetInfo info;
+		info.offset_x =   (cur_x - pre_x) / (image.cols / 2);
+		info.offset_y = - (cur_y - pre_y) / (image.rows / 2);
+		_offsetCache.AddInfo(info);
+		info = _offsetCache.GetValidOffsetInfo();
+		//_3dModels._offset_x =   info.offset_x;
+		//_3dModels._offset_y =   info.offset_y;
+
+		_rotatedRectROIPre = rotatedRect;
+		_preValidRect = validRect;
+		return false;
 	}
 	return true;
 }

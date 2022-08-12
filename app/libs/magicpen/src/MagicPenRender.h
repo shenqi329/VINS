@@ -28,7 +28,7 @@ public:
 
 	void Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY);
 private:
-    void Draw(MagicPen3DLimbModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY);
+    void Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *pen3DLimbModel, double timeStampSec, float cameraRotateX, float CameraRotateY);
 
     void InitProgram();
     void InitBuffer();

@@ -1,6 +1,7 @@
 #ifndef MAGIC_PEN_MALIANG_H
 #define MAGIC_PEN_MALIANG_H
 
+#include <queue>
 #include <opencv2/imgproc.hpp>
 #include "MagicPen3DModel.h"
 
@@ -9,6 +10,23 @@
 #endif
 
 #include "MagicPenRender.h"
+
+struct OffsetInfo {
+	float offset_x = 0;
+	float offset_y = 0;
+    float scale;
+};
+
+class OffsetCache {
+public:
+	void Reset();
+	void AddInfo(OffsetInfo info);
+	OffsetInfo GetValidOffsetInfo();
+private:
+	OffsetInfo _cache[3];
+	OffsetInfo _validInfo;
+    size_t  ignore_count = 0;
+};
 
 class MagicPenMaLiang
 {
@@ -39,7 +57,14 @@ private:
 	void CalculationLimbInfoType(MagicPenContourHander &hander, cv::Rect boundRect);
 #endif
 private:
-	cv::RotatedRect _rotatedRectROI;
+	cv::RotatedRect _rotatedRectROIBegin;
+	cv::Rect        _beginValidRect;
+
+    cv::RotatedRect _rotatedRectROIPre;
+    cv::Rect        _preValidRect;
+
+	glm::mat4 _transformM = glm::mat4(1.0f);
+
 	cv::Rect _ROI;
 	MagicPen3DModel _3dModels;
 
@@ -51,6 +76,8 @@ private:
 
     float _rotate_x = 0;
     float _rotate_y = 0;
+
+	OffsetCache _offsetCache;
 };
 
 #endif

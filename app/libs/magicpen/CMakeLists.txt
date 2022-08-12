@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.4.1)
 
+SET(CMAKE_BUILD_TYPE Release)
+
 set(magicpen_SRCS
         src/MagicPenMaLiang.cpp
         src/polypartition.cpp

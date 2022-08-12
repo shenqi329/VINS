@@ -211,13 +211,13 @@ void MagicPenRender::SetTextureEdgeImage(cv::Mat texture_edge_image_rgba) {
 
 void MagicPenRender::Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY) {
 	for (size_t i = 0; i < model->_3dModels.size(); i++) {
-		Draw(model->_3dModels[i],  timeStampSec, cameraRotateX, CameraRotateY);
+		Draw(model, model->_3dModels[i],  timeStampSec, cameraRotateX, CameraRotateY);
 	}
 }
 
-void MagicPenRender::Draw(MagicPen3DLimbModel *pModel, double timeStampSec, float cameraRotateX, float CameraRotateY) {
+void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLimbModel, double timeStampSec, float cameraRotateX, float CameraRotateY) {
 
-    if (!pModel->_image_rgba.data) {
+    if (!p3DLimbModel->_image_rgba.data) {
         return;
     }
 	if (!_standInit) {
@@ -254,8 +254,8 @@ void MagicPenRender::Draw(MagicPen3DLimbModel *pModel, double timeStampSec, floa
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // load image, create texture and generate mipmaps
 
-    if (pModel->_image_rgba.data) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pModel->_image_rgba.cols, pModel->_image_rgba.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, pModel->_image_rgba.data);
+    if (p3DLimbModel->_image_rgba.data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p3DLimbModel->_image_rgba.cols, p3DLimbModel->_image_rgba.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, p3DLimbModel->_image_rgba.data);
         glGenerateMipmap(GL_TEXTURE_2D);
     } else {
         LOGE("Failed to load texture");
@@ -264,10 +264,10 @@ void MagicPenRender::Draw(MagicPen3DLimbModel *pModel, double timeStampSec, floa
     glBindVertexArray(_VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, _VBO);
-    glBufferData(GL_ARRAY_BUFFER, pModel->_vertices_front_size, pModel->_vertices_front, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, p3DLimbModel->_vertices_front_size, p3DLimbModel->_vertices_front, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, pModel->_indices_front_size, pModel->_indices_front, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, p3DLimbModel->_indices_front_size, p3DLimbModel->_indices_front, GL_STATIC_DRAW);
 
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
@@ -282,10 +282,10 @@ void MagicPenRender::Draw(MagicPen3DLimbModel *pModel, double timeStampSec, floa
     glBindVertexArray(_VAO_edge);
 
     glBindBuffer(GL_ARRAY_BUFFER, _VBO_edge);
-    glBufferData(GL_ARRAY_BUFFER, pModel->_vertices_side_size, pModel->_vertices_side, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, p3DLimbModel->_vertices_side_size, p3DLimbModel->_vertices_side, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _EBO_edge);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, pModel->_indices_side_size, pModel->_indices_side, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, p3DLimbModel->_indices_side_size, p3DLimbModel->_indices_side, GL_STATIC_DRAW);
 
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
@@ -328,18 +328,18 @@ void MagicPenRender::Draw(MagicPen3DLimbModel *pModel, double timeStampSec, floa
     model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
     model = glm::scale(model,glm::vec3(scale, scale, scale));
 	model = _stand_model * model;
-    //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+    model = glm::translate(model, glm::vec3(p3DModel->_offset_x, p3DModel->_offset_y, 0.0f));
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
-    glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, p3DLimbModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
 	glBindVertexArray(_VAO);
 	model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
     model = glm::scale(model,glm::vec3(scale, scale, scale));
 	model = _stand_model * model;
-	model = glm::translate(model, glm::vec3(0.0f, 0.0f, -0.10001f));
+	model = glm::translate(model, glm::vec3(p3DModel->_offset_x, p3DModel->_offset_y, -0.10001f));
 	glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
-    glDrawElements(GL_TRIANGLES, pModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, p3DLimbModel->_indices_front_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
     // bind Texture
     glBindTexture(GL_TEXTURE_2D, _texture_edge);
@@ -349,8 +349,9 @@ void MagicPenRender::Draw(MagicPen3DLimbModel *pModel, double timeStampSec, floa
     model = glm::rotate(model, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
     model = glm::scale(model,glm::vec3(scale, scale, scale));
 	model = _stand_model * model;
+    model = glm::translate(model, glm::vec3(p3DModel->_offset_x, p3DModel->_offset_y, 0.0f));
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "model"), 1, GL_FALSE, &model[0][0]);
-    glDrawElements(GL_TRIANGLES, pModel->_indices_side_size / sizeof(int), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, p3DLimbModel->_indices_side_size / sizeof(int), GL_UNSIGNED_INT, 0);
 
     glDeleteTextures(1, &texture);
 
