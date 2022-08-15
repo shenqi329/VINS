@@ -8,6 +8,7 @@ set(magicpen_SRCS
         src/MagicPenRender.cpp
         src/MagicPen3DModel.cpp
         src/MagicPenFeatureTrack.cpp
+        src/MagicPenUtil.cpp
         )
 
 set(TARGET_NAME magicpen)

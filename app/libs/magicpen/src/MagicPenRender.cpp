@@ -237,7 +237,7 @@ void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLim
         }
 	}
 
-    float scale = 1.0f;//curMinAreaRect.size.width / beginMinAreaRect.size.width;
+    float scale = p3DModel->_scale;
 
     glEnable(GL_DEPTH_TEST);
 

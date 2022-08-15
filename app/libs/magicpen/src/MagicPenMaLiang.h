@@ -80,6 +80,7 @@ private:
 
 	float _pre_x;
 	float _pre_y;
+	float _pre_distance;
 
 	OffsetCache _offsetCache;
 

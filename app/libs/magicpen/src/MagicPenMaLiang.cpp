@@ -6,6 +6,7 @@
 #include <opencv2/video/tracking.hpp>
 #include <iostream>
 #include "polypartition.h"
+#include "MagicPenUtil.h"
 
 #define PI 3.14159265
 
@@ -423,6 +424,7 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 		std::vector<cv::Point2f> roi_corners = _feature_track.ROICorners();
 		_pre_x = (roi_corners[1].x + roi_corners[2].x) / 2;
 		_pre_y = (roi_corners[1].y + roi_corners[2].y) / 2;
+		_pre_distance = MagicPenUtil::GetDistance(roi_corners[1], roi_corners[2]);
 
         _ROI.x += _beginValidRect.x;
         _ROI.y += _beginValidRect.y;
@@ -447,96 +449,12 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
         std::vector<cv::Point2f> roi_corners = _feature_track.ROICorners();
 		float cur_x = (roi_corners[1].x + roi_corners[2].x) / 2;
 		float cur_y = (roi_corners[1].y + roi_corners[2].y) / 2;
+		float distance = MagicPenUtil::GetDistance(roi_corners[1], roi_corners[2]);
 
 		_3dModels._offset_x =   (cur_x - _pre_x) / (image.cols / 2);
 		_3dModels._offset_y =   - (cur_y - _pre_y) / (image.rows / 2);
-
-		//_pre_x = cur_x;
-		//_pre_y = cur_y;
-#if 0
-		// 获取轮廓
-		cv::Rect validRect;
-		std::vector<std::vector<cv::Point> > contours = findContours(image, image_gray, validRect);
-
-#ifdef _WIN32
-		cv::Mat contours_dst = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
-		for (size_t i = 0; i < contours.size(); i++) {
-			cv::drawContours(contours_dst, contours, i , cv::Scalar(255.f));
-			char buffer[128];
-			sprintf(buffer, "contour_%d", i);
-		}
-		// cv::imshow("contour", contours_dst);
-#endif
-
-        // 以ROI为中心点，找到位于中心区域的轮廓
-        findNearbyContours(contours, cv::Point(_ROI.x + _ROI.width / 2, _ROI.y + _ROI.height / 2));
-
-        if(contours.size() <= 0) {
-            return false;
-        }
-
-		std::vector<cv::Point> all_contour;
-		for (size_t i = 0; i < contours.size(); i++) {
-			all_contour.insert(all_contour.end(), contours[i].begin(), contours[i].end());
-		}
-		cv::RotatedRect rotatedRect = cv::minAreaRect(all_contour);
-		cv::Rect boundingRect = rotatedRect.boundingRect();
-		_ROI = boundingRect;
-        _ROI.x += validRect.x;
-        _ROI.y += validRect.y;
-
-		float scale = rotatedRect.size.area() / _rotatedRectROIBegin.size.area();
-		if(scale < 0.5 || scale > 1.5) {
-			_3dModels._offset_x = 0;
-			_3dModels._offset_y = 0;
-			_3dModels._scale = 1;
-			_ROI = cv::Rect(0, 0 , image.cols, image.rows);
-			return false;
-		}
-
-        //std::cout << "_ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
-        //std::cout << "angle:" << rotatedRect.angle << ", width:" << rotatedRect.size.width << ", height:" << rotatedRect.size.height << std::endl;
-
-		cv::Point2f points_begin[4];
-		cv::Point2f points_cur[4];
-
-		_rotatedRectROIBegin.points(points_begin);
-		rotatedRect.points(points_cur);
-
-		if(points_begin[0].x > _rotatedRectROIBegin.center.x) {
-			auto tmp = points_begin[0];
-			points_begin[0] = points_begin[1];
-			points_begin[1] = points_begin[2];
-			points_begin[2] = points_begin[3];
-			points_begin[3] = tmp;
-		}
-		if(points_cur[0].x > rotatedRect.center.x) {
-			auto tmp = points_cur[0];
-			points_cur[0] = points_cur[1];
-			points_cur[1] = points_cur[2];
-			points_cur[2] = points_cur[3];
-			points_cur[3] = tmp;
-		}
-
-        float pre_x = ((points_begin[0].x + points_begin[3].x) / 2 + _beginValidRect.x);
-        float pre_y = ((points_begin[0].y + points_begin[3].y) / 2 + _beginValidRect.y);
-
-        float cur_x = ((points_cur[0].x + points_cur[3].x) / 2 + validRect.x);
-        float cur_y = ((points_cur[0].y + points_cur[3].y) / 2 + validRect.y);
-
-		OffsetInfo info;
-		info.offset_x =   (cur_x - pre_x) / (image.cols / 2);
-		info.offset_y = - (cur_y - pre_y) / (image.rows / 2);
-		_offsetCache.AddInfo(info);
-		info = _offsetCache.GetValidOffsetInfo();
-		//_3dModels._offset_x =   info.offset_x;
-		//_3dModels._offset_y =   info.offset_y;
-
-		_rotatedRectROIPre = rotatedRect;
-		_preValidRect = validRect;
-
-		ShowROI(image, rotatedRect.boundingRect());
-#endif
+		_3dModels._scale    =   distance / _pre_distance;
+		std::cout << "_3dModels _scale:" << _3dModels._scale << std::endl;
 		return false;
 	}
 	return true;

@@ -106,7 +106,7 @@ public:
 
     float _offset_x = 0;
     float _offset_y = 0;
-    float _scale = 0;
+    float _scale = 1;
 public:
 	void InitFromContours(std::vector< std::vector<cv::Point> > contours, 
 		float offset_x,float offset_y, int cols, int rows, int texture_side_width, int texture_side_height, cv::Mat image_rgba);
