@@ -47,8 +47,8 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
 
     private CameraGLSurfaceView mCameraView;
 
-    private final int imageWidth = 360;
-    private final int imageHeight = 320;
+    private final int imageWidth = 360*2;
+    private final int imageHeight = 320*2;
 
     // needed for permission request callback
     private static final int PERMISSIONS_REQUEST_CODE = 12345;

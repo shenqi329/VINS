@@ -7,6 +7,7 @@ set(magicpen_SRCS
         src/polypartition.cpp
         src/MagicPenRender.cpp
         src/MagicPen3DModel.cpp
+        src/MagicPenFeatureTrack.cpp
         )
 
 set(TARGET_NAME magicpen)

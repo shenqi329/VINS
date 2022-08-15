@@ -4,6 +4,7 @@
 #include <queue>
 #include <opencv2/imgproc.hpp>
 #include "MagicPen3DModel.h"
+#include "MagicPenFeatureTrack.h"
 
 #ifdef _WIN32
 #define MagicPenMaLiang_DEBUG
@@ -44,7 +45,7 @@ public:
 
 private:
 
-	std::vector<std::vector<cv::Point> > findContours(cv::Mat image, cv::Rect &validRect);
+	std::vector<std::vector<cv::Point> > findContours(cv::Mat image, cv::Mat image_gray, cv::Rect &validRect);
 	
 	// 连接临近的edge
 	void ConnectAdjacentEdge(cv::Mat &detected_edges);
@@ -77,7 +78,12 @@ private:
     float _rotate_x = 0;
     float _rotate_y = 0;
 
+	float _pre_x;
+	float _pre_y;
+
 	OffsetCache _offsetCache;
+
+	MagicPenFeatureTrack _feature_track;
 };
 
 #endif

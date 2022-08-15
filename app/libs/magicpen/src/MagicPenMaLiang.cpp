@@ -290,11 +290,11 @@ void MagicPenMaLiang::setRotate(float x, float y) {
 	_rotate_y = y;
 }
 
-std::vector<std::vector<cv::Point> > MagicPenMaLiang::findContours(cv::Mat image , cv::Rect &validRect) {
+std::vector<std::vector<cv::Point> > MagicPenMaLiang::findContours(cv::Mat image, cv::Mat image_gray, cv::Rect &validRect) {
     if(!_init_image) {
         cv::imwrite("/storage/emulated/0/SBML/origin.jpg",image);
     }
-	cv::Mat image_gray;
+
 	cv::Mat	detected_edges;
 	cv::Mat	mask;
 
@@ -307,8 +307,6 @@ std::vector<std::vector<cv::Point> > MagicPenMaLiang::findContours(cv::Mat image
         LOGI("GetMaskMaxWhiteRect Fail");
         return std::vector<std::vector<cv::Point> >(0);
     }
-	
-	cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 
 	// 获取白色区域灰度图，用于后续检测
     image_gray(validRect).copyTo(detected_edges);
@@ -368,23 +366,36 @@ cv::Rect MagicPenMaLiang::expandRect(cv::Rect src, float expand_value, cv::Mat i
 	return src;
 }
 
+void ShowROI(cv::Mat image, cv::Rect roi) {
+#if 0
+	cv::Mat roi_image;
+	image.copyTo(roi_image);
+
+	cv::rectangle(roi_image, roi, cv::Scalar(127.f));
+	cv::imshow("roi_image", roi_image);
+#endif
+}
+
 bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_side_height) {
+
+	cv::Mat image_gray;
+	cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 
 	if(!_init_image) {
 		
 		// 获取轮廓
-		std::vector<std::vector<cv::Point> > contours = findContours(image, _beginValidRect);
+		std::vector<std::vector<cv::Point> > contours = findContours(image, image_gray, _beginValidRect);
 		if(contours.size() <= 0){
 			return false;
 		}
 #ifdef _WIN32
+		cv::Mat contours_dst = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
 		for (size_t i = 0; i < contours.size(); i++) {
-			cv::Mat dst = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
-			cv::drawContours(dst, contours, i , cv::Scalar(255.f));
+			cv::drawContours(contours_dst, contours, i , cv::Scalar(255.f));
 			char buffer[128];
 			sprintf(buffer, "contour_%d", i);
-			cv::imshow(buffer, dst);
 		}
+		// cv::imshow("contour", contours_dst);
 #endif
 
         // 找到位于中心区域的轮廓
@@ -405,14 +416,22 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 		}
         _rotatedRectROIBegin = cv::minAreaRect(all_contour);
         _ROI = _rotatedRectROIBegin.boundingRect();
+
+		if(!_feature_track.Init(image_gray, _ROI)) {
+			return false;
+		}
+		std::vector<cv::Point2f> roi_corners = _feature_track.ROICorners();
+		_pre_x = (roi_corners[1].x + roi_corners[2].x) / 2;
+		_pre_y = (roi_corners[1].y + roi_corners[2].y) / 2;
+
         _ROI.x += _beginValidRect.x;
         _ROI.y += _beginValidRect.y;
 
 		_rotatedRectROIPre = _rotatedRectROIBegin;
 		_preValidRect = _beginValidRect;
 
-        std::cout << "Init _ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
-        std::cout << "Init angle:" << _rotatedRectROIBegin.angle << ", width:" << _rotatedRectROIBegin.size.width << ", height:" << _rotatedRectROIBegin.size.height << std::endl;
+        //std::cout << "Init _ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
+        //std::cout << "Init angle:" << _rotatedRectROIBegin.angle << ", width:" << _rotatedRectROIBegin.size.width << ", height:" << _rotatedRectROIBegin.size.height << std::endl;
 
 		// 根据轮廓生成3D模型
 		cv::Mat image_rgba;
@@ -420,11 +439,34 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 		_3dModels.InitFromContours(contours, _beginValidRect.x, _beginValidRect.y, image.cols, image.rows, texture_side_width, texture_side_height, image_rgba);
 
 		_init_image = true;
+
+		ShowROI(image, _rotatedRectROIBegin.boundingRect());
 	} else {
 
+		_feature_track.Track(image_gray);
+        std::vector<cv::Point2f> roi_corners = _feature_track.ROICorners();
+		float cur_x = (roi_corners[1].x + roi_corners[2].x) / 2;
+		float cur_y = (roi_corners[1].y + roi_corners[2].y) / 2;
+
+		_3dModels._offset_x =   (cur_x - _pre_x) / (image.cols / 2);
+		_3dModels._offset_y =   - (cur_y - _pre_y) / (image.rows / 2);
+
+		//_pre_x = cur_x;
+		//_pre_y = cur_y;
+#if 0
 		// 获取轮廓
 		cv::Rect validRect;
-		std::vector<std::vector<cv::Point> > contours = findContours(image, validRect);
+		std::vector<std::vector<cv::Point> > contours = findContours(image, image_gray, validRect);
+
+#ifdef _WIN32
+		cv::Mat contours_dst = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
+		for (size_t i = 0; i < contours.size(); i++) {
+			cv::drawContours(contours_dst, contours, i , cv::Scalar(255.f));
+			char buffer[128];
+			sprintf(buffer, "contour_%d", i);
+		}
+		// cv::imshow("contour", contours_dst);
+#endif
 
         // 以ROI为中心点，找到位于中心区域的轮廓
         findNearbyContours(contours, cv::Point(_ROI.x + _ROI.width / 2, _ROI.y + _ROI.height / 2));
@@ -452,8 +494,8 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 			return false;
 		}
 
-        std::cout << "_ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
-        std::cout << "angle:" << rotatedRect.angle << ", width:" << rotatedRect.size.width << ", height:" << rotatedRect.size.height << std::endl;
+        //std::cout << "_ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
+        //std::cout << "angle:" << rotatedRect.angle << ", width:" << rotatedRect.size.width << ", height:" << rotatedRect.size.height << std::endl;
 
 		cv::Point2f points_begin[4];
 		cv::Point2f points_cur[4];
@@ -492,6 +534,9 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 
 		_rotatedRectROIPre = rotatedRect;
 		_preValidRect = validRect;
+
+		ShowROI(image, rotatedRect.boundingRect());
+#endif
 		return false;
 	}
 	return true;
