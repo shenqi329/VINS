@@ -10,11 +10,11 @@ public:
 
 	void Track(cv::Mat image_gray);
 
-	std::vector<cv::Point2f> ROICorners();
+	std::vector<cv::Point2f> GetROICorners();
 
 private:
 	bool CompareWithFirstImage(cv::Mat cur_image_gray);
-	void TrackWithCalcOpticalFlowPyrLK(cv::Mat image_gray);
+	bool TrackWithCalcOpticalFlowPyrLK(cv::Mat image_gray);
 
 	void ShowTrackFeature(char * name, std::vector<cv::Point2f> feature_corners, std::vector<cv::Point2f> _image_ROI_corners);
 

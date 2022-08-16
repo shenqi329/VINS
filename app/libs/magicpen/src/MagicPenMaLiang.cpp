@@ -260,12 +260,12 @@ bool isContoursVaild(std::vector< std::vector<cv::Point>> &contours, int cols, i
 
 	float centerXDistance = abs(boundingRect.x + boundingRect.width/2 - cols/2);
 	if (centerXDistance > cols / 6) {
-        LOGI("XDistance big");
+        LOGI("XDistance big:%f", centerXDistance);
 		return false;
 	}
 	float centerYDistance = abs(boundingRect.y + boundingRect.height/2 - rows/2);
-	if (centerYDistance > rows / 6) {
-        LOGI("YDistance big");
+	if (centerYDistance > rows / 4) {
+        LOGI("YDistance big:%f", centerYDistance);
 		return false;
 	}
 	
@@ -383,12 +383,14 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 
 	if(!_init_image) {
-		
+
+		cv::Rect validRect;
 		// 获取轮廓
-		std::vector<std::vector<cv::Point> > contours = findContours(image, image_gray, _beginValidRect);
-		if(contours.size() <= 0){
+		std::vector<std::vector<cv::Point> > contours = findContours(image, image_gray, validRect);
+		if(contours.size() <= 0) {
 			return false;
 		}
+		std::cout << "contours.size()"<< contours.size() << std::endl;
 #ifdef _WIN32
 		cv::Mat contours_dst = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
 		for (size_t i = 0; i < contours.size(); i++) {
@@ -415,50 +417,47 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 		for (size_t i = 0; i < contours.size(); i++) {
 			all_contour.insert(all_contour.end(), contours[i].begin(), contours[i].end());
 		}
-        _rotatedRectROIBegin = cv::minAreaRect(all_contour);
-        _ROI = _rotatedRectROIBegin.boundingRect();
 
-		if(!_feature_track.Init(image_gray, _ROI)) {
+        cv::Rect ROI = cv::minAreaRect(all_contour).boundingRect();
+        ROI.x += validRect.x;
+        ROI.y += validRect.y;
+
+		if(!_feature_track.Init(image_gray, ROI)) {
 			return false;
 		}
-		std::vector<cv::Point2f> roi_corners = _feature_track.ROICorners();
+		std::vector<cv::Point2f> roi_corners = _feature_track.GetROICorners();
 		_pre_x = (roi_corners[1].x + roi_corners[2].x) / 2;
 		_pre_y = (roi_corners[1].y + roi_corners[2].y) / 2;
 		_pre_distance = MagicPenUtil::GetDistance(roi_corners[1], roi_corners[2]);
 
-        _ROI.x += _beginValidRect.x;
-        _ROI.y += _beginValidRect.y;
-
-		_rotatedRectROIPre = _rotatedRectROIBegin;
-		_preValidRect = _beginValidRect;
-
-        //std::cout << "Init _ROI.x:" << _ROI.x << ", _ROI.y:" << _ROI.y << ", _ROI.width:" << _ROI.width << ", _ROI.height:" << _ROI.height << std::endl;
-        //std::cout << "Init angle:" << _rotatedRectROIBegin.angle << ", width:" << _rotatedRectROIBegin.size.width << ", height:" << _rotatedRectROIBegin.size.height << std::endl;
-
 		// 根据轮廓生成3D模型
 		cv::Mat image_rgba;
 		cv::cvtColor(image, image_rgba, cv::COLOR_BGR2RGBA);
-		_3dModels.InitFromContours(contours, _beginValidRect.x, _beginValidRect.y, image.cols, image.rows, texture_side_width, texture_side_height, image_rgba);
+		_3dModels.InitFromContours(contours, validRect.x, validRect.y, image.cols, image.rows, texture_side_width, texture_side_height, image_rgba);
 
 		_init_image = true;
 
-		ShowROI(image, _rotatedRectROIBegin.boundingRect());
+		ShowROI(image, ROI);
 	} else {
 
 		_feature_track.Track(image_gray);
-        std::vector<cv::Point2f> roi_corners = _feature_track.ROICorners();
+        std::vector<cv::Point2f> roi_corners = _feature_track.GetROICorners();
 		float cur_x = (roi_corners[1].x + roi_corners[2].x) / 2;
 		float cur_y = (roi_corners[1].y + roi_corners[2].y) / 2;
 		float distance = MagicPenUtil::GetDistance(roi_corners[1], roi_corners[2]);
 
-		_3dModels._offset_x =   (cur_x - _pre_x) / (image.cols / 2);
-		_3dModels._offset_y =   - (cur_y - _pre_y) / (image.rows / 2);
-		_3dModels._scale    =   distance / _pre_distance;
-		std::cout << "_3dModels _scale:" << _3dModels._scale << std::endl;
+		//_3dModels._offset_x =   (cur_x - _pre_x) / (image.cols / 2);
+		//_3dModels._offset_y =   - (cur_y - _pre_y) / (image.rows / 2);
+		//_3dModels._scale    =   distance / _pre_distance;
 		return false;
 	}
 	return true;
 }
+
+std::vector<cv::Point2f> MagicPenMaLiang::GetTrackRectPoints() {
+	return _feature_track.GetROICorners();
+}
+
 
 void MagicPenMaLiang::Draw(double timeStampSec) {
 #ifdef _WIN32

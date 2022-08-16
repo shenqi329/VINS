@@ -93,6 +93,24 @@ Java_com_example_vins_MagicPenJNI_init(JNIEnv *env, jclass instance) {
 
 extern "C"
 JNIEXPORT void JNICALL
+Java_com_example_vins_MagicPenJNI_getTrackRectPoints(JNIEnv *env, jclass instance, jfloatArray floatArray) {
+    jfloat*  ptr = reinterpret_cast<jfloat* >(env->GetFloatArrayElements(floatArray,NULL));
+    int length = env->GetArrayLength(floatArray);
+    assert(length == 8);
+
+    std::vector<cv::Point2f> points = magicPenMaLiang.GetTrackRectPoints();
+    assert(points.size() == 4);
+
+    for (int i = 0; i < points.size(); ++i) {
+        ptr[i*2 + 0] = points[i].x;
+        ptr[i*2 + 1] = points[i].y;
+    }
+
+    env->SetFloatArrayRegion(floatArray, 0, length, ptr);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
 Java_com_example_vins_MagicPenJNI_setEdgeImageByte(JNIEnv *env, jclass type, jbyteArray bytesArray) {
 
     uint8_t*  ptr = reinterpret_cast<uint8_t *>(env->GetByteArrayElements(bytesArray,NULL));

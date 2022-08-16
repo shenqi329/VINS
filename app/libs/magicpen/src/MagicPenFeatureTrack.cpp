@@ -87,7 +87,7 @@ bool MagicPenFeatureTrack::Init(cv::Mat image_gray, cv::Rect roi) {
 	return true;
 }
 
-std::vector<cv::Point2f> MagicPenFeatureTrack::ROICorners() {
+std::vector<cv::Point2f> MagicPenFeatureTrack::GetROICorners() {
 	if(!_init) {
 		return _origin_image_ROI_corners;
 	}
@@ -127,25 +127,27 @@ bool MagicPenFeatureTrack::CompareWithFirstImage(cv::Mat cur_image_gray) {
 	return true;
 }
 
-void MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray) {
+bool MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray) {
 	std::vector<uchar> status;
 	std::vector<float> err;
 	std::vector<cv::Point2f> cur_feature_corners;
 
+    if(_pre_feature_corners.size() < 10) {
+        return false;
+    }
 	cv::calcOpticalFlowPyrLK(_pre_image, cur_image_gray, _pre_feature_corners, cur_feature_corners, status, err, cv::Size(21,21), 3);
 
 	reduceVector(_pre_feature_corners, status);
 	reduceVector(cur_feature_corners, status);
 
 	if(_pre_feature_corners.size() < 10) {
-		return;
+		return false;
 	}
 
 	cv::Mat homography = cv::findHomography(_pre_feature_corners, cur_feature_corners, cv::RANSAC, 5);
 
 	if(!IsHomographyValid(homography, _pre_feature_corners, cur_feature_corners)) {
-		_init = false;
-		return;
+		return false;
 	}
 
 	cv::perspectiveTransform(_pre_image_ROI_corners, _pre_image_ROI_corners, homography);
@@ -167,6 +169,8 @@ void MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray)
 #endif
 	std::cout << "track pre_feature_corners.size():" << _pre_feature_corners.size()  << std::endl;
 	ShowTrackFeature("show_track_image", _pre_feature_corners, _pre_image_ROI_corners);
+
+    return true;
 }
 
 void MagicPenFeatureTrack::Track(cv::Mat image_gray) {
@@ -176,7 +180,9 @@ void MagicPenFeatureTrack::Track(cv::Mat image_gray) {
 		return;
 	}
 
-	TrackWithCalcOpticalFlowPyrLK(image_gray);
+	if(!TrackWithCalcOpticalFlowPyrLK(image_gray)) {
+		_init = false;
+	}
 	//CompareWithFirstImage(image_gray);
 }
 

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Point;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.Sensor;
@@ -16,6 +17,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.util.Size;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -47,8 +49,8 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
 
     private CameraGLSurfaceView mCameraView;
 
-    private final int imageWidth = 360*2;
-    private final int imageHeight = 320*2;
+    private final int imageWidth = 360;
+    private final int imageHeight = 320;
 
     // needed for permission request callback
     private static final int PERMISSIONS_REQUEST_CODE = 12345;
@@ -57,10 +59,8 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
     private TextView tvX;
     private TextView tvY;
     private TextView tvZ;
-    private TextView tvTotal;
-    private TextView tvLoop;
-    private TextView tvFeature;
-    private TextView tvBuf;
+
+    MagicPenDrawLineView drawLineView;
 
     // ImageView for initialization instructions
     private ImageView ivInit;
@@ -151,6 +151,10 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
         tvX = (TextView) findViewById(R.id.x_Label);
         tvY = (TextView) findViewById(R.id.y_Label);
         tvZ = (TextView) findViewById(R.id.z_Label);
+        drawLineView = (MagicPenDrawLineView) findViewById(R.id.draw_line);
+        tvX.setVisibility(View.INVISIBLE);
+        tvY.setVisibility(View.INVISIBLE);
+        tvZ.setVisibility(View.INVISIBLE);
 
         mCameraView = (CameraGLSurfaceView) findViewById(R.id.gl_texture_view);
         mCameraView.setCallback(this);
@@ -303,6 +307,17 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
                 0, null, null,
                 null, curImageTimeStamp, isScreenRotated,
                 virtualCamDistance, data, true);
+
+        float[] pointsArray = new float[8];
+        MagicPenJNI.getTrackRectPoints(pointsArray);
+
+        Point[] points = new Point[4];
+        for (int i = 0 ; i < 4 ; i++) {
+            points[i] = new Point();
+            points[i].x =  (int) pointsArray[i*2 + 0];
+            points[i].y =  (int) pointsArray[i*2 + 1];
+        }
+        drawLineView.SetLinePoints(points);
     }
 
     /**

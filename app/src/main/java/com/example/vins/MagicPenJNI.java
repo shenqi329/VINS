@@ -20,6 +20,8 @@ public class MagicPenJNI implements Serializable {
     public static native void setRotate(float x, float y);
 
     public static native void setEdgeImageByte(byte[] bytes);
+
+    public static native void getTrackRectPoints(float[] floats);
     
     public static native void onImageAvailable(int width, int height, int rowStrideY, ByteBuffer bufferY,
                                                int rowStrideUV, ByteBuffer bufferU, ByteBuffer bufferV, 
