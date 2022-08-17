@@ -22,7 +22,7 @@ class MagicPenRender {
 public:
     ~MagicPenRender();
 
-    void Init();
+    void Init(float projMatrix[16]);
 
     void SetTextureEdgeImage(cv::Mat texture_edge_image_rgba);
 
@@ -31,7 +31,7 @@ private:
     void Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *pen3DLimbModel, double timeStampSec, float cameraRotateX, float CameraRotateY);
 
     void InitProgram();
-    void InitBuffer();
+    void InitBuffer(float projMatrix[16]);
 
     void GenTextures();
 

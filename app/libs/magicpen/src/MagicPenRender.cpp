@@ -15,7 +15,7 @@
 #include <learnopengl/filesystem.h>
 
 #endif
-
+#include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "MagicPenRender.h"
@@ -76,9 +76,9 @@ MagicPenRender::~MagicPenRender() {
     glDeleteBuffers(1, &_EBO_edge);
 }
 
-void MagicPenRender::Init() {
+void MagicPenRender::Init(float projMatrix[16]) {
     InitProgram();
-    InitBuffer();
+    InitBuffer(projMatrix);
 	GenTextures();
 }
 
@@ -188,13 +188,15 @@ void MagicPenRender::InitProgram() {
     _programObject = programObject;
 }
 
-void MagicPenRender::InitBuffer() {
+void MagicPenRender::InitBuffer(float projMatrix[16]) {
 
     glUseProgram(_programObject);
-
+#if 0
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)320 / (float)360, 0.1f, 100.0f);
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "projection"), 1, GL_FALSE, &projection[0][0]);
-
+#else
+    glUniformMatrix4fv(glGetUniformLocation(_programObject, "projection"), 1, GL_FALSE, projMatrix);
+#endif
     glGenVertexArrays(1, &_VAO);
     glGenBuffers(1, &_VBO);
     glGenBuffers(1, &_EBO);

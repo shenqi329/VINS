@@ -6,12 +6,15 @@
 class MagicPenFeatureTrack
 {
 public:
+	MagicPenFeatureTrack();
+
 	bool Init(cv::Mat image_gray, cv::Rect roi);
 
 	void Track(cv::Mat image_gray);
 
-	std::vector<cv::Point2f> GetROICorners();
+    float* buildProjectionMatrix(float nearp, float farp);
 
+	std::vector<cv::Point2f> GetROICorners();
 private:
 	bool CompareWithFirstImage(cv::Mat cur_image_gray);
 	bool TrackWithCalcOpticalFlowPyrLK(cv::Mat image_gray);
@@ -23,9 +26,15 @@ private:
 
 	std::vector<cv::Point2f> _origin_feature_corners;
 	std::vector<cv::Point2f> _origin_image_ROI_corners;
+    std::vector<cv::Point3f> _origin_image_ROI_corners_3d;
 
 	std::vector<cv::Point2f> _pre_feature_corners;
 	std::vector<cv::Point2f> _pre_image_ROI_corners;
+
+	cv::Mat _camera_matrix;
+	cv::Mat _distortion_coefficients;
+	cv::Mat_<float> _projMatrix;
+    cv::Mat _viewMatrix;
 	bool _init = false;
 };
 

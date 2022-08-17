@@ -274,7 +274,8 @@ bool isContoursVaild(std::vector< std::vector<cv::Point>> &contours, int cols, i
 
 // MagicPenMaLiang begin
 void MagicPenMaLiang::Init() {
-    _render.Init();
+	float * projectMatrix = _feature_track.buildProjectionMatrix(0.01, 1000.f);
+    _render.Init(projectMatrix);
 }
 
 void MagicPenMaLiang::setEdgeImageByte(std::vector<uchar> data) {
@@ -289,6 +290,8 @@ void MagicPenMaLiang::setEdgeImageByte(std::vector<uchar> data) {
 void MagicPenMaLiang::setRotate(float x, float y) {
 	_rotate_x = x;
 	_rotate_y = y;
+
+    // std::cout << "_rotate_x" << _rotate_x << "_rotate_y" << _rotate_y << std::endl;
 }
 
 std::vector<std::vector<cv::Point> > MagicPenMaLiang::findContours(cv::Mat image, cv::Mat image_gray, cv::Rect &validRect) {
@@ -384,6 +387,11 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 
 	if(!_init_image) {
 
+		if (abs(_rotate_x) > 4 || abs(_rotate_y) > 4) {
+			//std::cout << "请正对着桌面上的绘画进行拍摄" << std::endl;
+			return false;
+		}
+
 		cv::Rect validRect;
 		// 获取轮廓
 		std::vector<std::vector<cv::Point> > contours = findContours(image, image_gray, validRect);
@@ -418,7 +426,7 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 			all_contour.insert(all_contour.end(), contours[i].begin(), contours[i].end());
 		}
 
-        cv::Rect ROI = cv::minAreaRect(all_contour).boundingRect();
+        cv::Rect ROI = cv::boundingRect(all_contour);
         ROI.x += validRect.x;
         ROI.y += validRect.y;
 
