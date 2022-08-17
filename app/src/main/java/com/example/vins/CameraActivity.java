@@ -318,6 +318,7 @@ public class CameraActivity extends Activity implements Camera.PreviewCallback, 
             points[i].y =  (int) pointsArray[i*2 + 1];
         }
         drawLineView.SetLinePoints(points);
+        mCameraView.onRequestRender();
     }
 
     /**

@@ -228,15 +228,15 @@ void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLim
 		_init_time = (float)timeStampSec;
 		_stand_model = glm::mat4(1.0f);
 	} else {
-//		if (timeStampSec - _init_time < 1.f ) {
-//			_stand_model = glm::mat4(1.0f);
-//			float angle = - ((_init_rotate_x) * (timeStampSec - _init_time) / 1.f);
-//			_stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
-//		} else {
-//            _stand_model = glm::mat4(1.0f);
-//            float angle = - (_init_rotate_x);
-//            _stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
-//        }
+		if (timeStampSec - _init_time < 1.f ) {
+			_stand_model = glm::mat4(1.0f);
+			float angle =  ((_init_rotate_x) * (timeStampSec - _init_time) / 1.f);
+			_stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
+		} else {
+            _stand_model = glm::mat4(1.0f);
+            float angle =  (_init_rotate_x);
+            _stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
+        }
 	}
 
     float scale = p3DModel->_scale;
@@ -332,6 +332,12 @@ void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLim
               viewMatrix[4],viewMatrix[5],viewMatrix[6],viewMatrix[7],
               viewMatrix[8],viewMatrix[9],viewMatrix[10],viewMatrix[11],
               viewMatrix[12],viewMatrix[13],viewMatrix[14],viewMatrix[15]);
+
+#ifdef ANDROID
+    glm::mat4 flipY = glm::mat4(1.0f);
+    flipY[1][1] = -1.0f;
+    view = flipY * view;
+#endif
 #endif
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "view"), 1, GL_FALSE, &view[0][0]);
 
