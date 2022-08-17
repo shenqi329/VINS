@@ -211,13 +211,13 @@ void MagicPenRender::SetTextureEdgeImage(cv::Mat texture_edge_image_rgba) {
     _texture_edge_image_rgba = texture_edge_image_rgba;
 }
 
-void MagicPenRender::Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY) {
+void MagicPenRender::Draw(MagicPen3DModel *model, double timeStampSec, float cameraRotateX, float CameraRotateY, float viewMatrix[16]) {
 	for (size_t i = 0; i < model->_3dModels.size(); i++) {
-		Draw(model, model->_3dModels[i],  timeStampSec, cameraRotateX, CameraRotateY);
+		Draw(model, model->_3dModels[i],  timeStampSec, cameraRotateX, CameraRotateY, viewMatrix);
 	}
 }
 
-void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLimbModel, double timeStampSec, float cameraRotateX, float CameraRotateY) {
+void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLimbModel, double timeStampSec, float cameraRotateX, float CameraRotateY, float viewMatrix[16]) {
 
     if (!p3DLimbModel->_image_rgba.data) {
         return;
@@ -228,15 +228,15 @@ void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLim
 		_init_time = (float)timeStampSec;
 		_stand_model = glm::mat4(1.0f);
 	} else {
-		if (timeStampSec - _init_time < 1.f ) {
-			_stand_model = glm::mat4(1.0f);
-			float angle = - ((90 + cameraRotateX) * (timeStampSec - _init_time) / 1.f);
-			_stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
-		} else {
-            _stand_model = glm::mat4(1.0f);
-            float angle = - (90 + cameraRotateX);
-            _stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
-        }
+//		if (timeStampSec - _init_time < 1.f ) {
+//			_stand_model = glm::mat4(1.0f);
+//			float angle = - ((_init_rotate_x) * (timeStampSec - _init_time) / 1.f);
+//			_stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
+//		} else {
+//            _stand_model = glm::mat4(1.0f);
+//            float angle = - (_init_rotate_x);
+//            _stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
+//        }
 	}
 
     float scale = p3DModel->_scale;
@@ -311,16 +311,28 @@ void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLim
     glUseProgram(_programObject);
 
     // camera/view transformation
-    glm::mat4 view = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
     float angle = 0;//timeStampSec * 20;
 
+#if 0
 #ifdef ANDROID
     glm::vec3 up = glm::vec3(0.0f, -1.0f, 0.0f);
 #else
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 #endif
-    view = glm::lookAt(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), up);
-
+    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), up);
+    std::cout << "glm::lookAt" << std::endl;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            std::cout << view[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+#else
+    glm::mat4 view = glm::mat4(viewMatrix[0],viewMatrix[1],viewMatrix[2],viewMatrix[3],
+              viewMatrix[4],viewMatrix[5],viewMatrix[6],viewMatrix[7],
+              viewMatrix[8],viewMatrix[9],viewMatrix[10],viewMatrix[11],
+              viewMatrix[12],viewMatrix[13],viewMatrix[14],viewMatrix[15]);
+#endif
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "view"), 1, GL_FALSE, &view[0][0]);
 
     glm::mat4 model;

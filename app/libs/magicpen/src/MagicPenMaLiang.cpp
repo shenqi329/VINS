@@ -386,11 +386,12 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 	cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 
 	if(!_init_image) {
-
+#ifdef ANDROID
 		if (abs(_rotate_x) > 4 || abs(_rotate_y) > 4) {
 			//std::cout << "请正对着桌面上的绘画进行拍摄" << std::endl;
 			return false;
 		}
+#endif
 
 		cv::Rect validRect;
 		// 获取轮廓
@@ -471,8 +472,9 @@ void MagicPenMaLiang::Draw(double timeStampSec) {
 #ifdef _WIN32
 	glClear(GL_COLOR_BUFFER_BIT);
 #endif
-
-	_render.Draw(&_3dModels, timeStampSec, _rotate_x, _rotate_y);
+	if(_feature_track.GetViewMatrix()) {
+		_render.Draw(&_3dModels, timeStampSec, _rotate_x, _rotate_y, _feature_track.GetViewMatrix());
+	}
 }
 
 static TPPLOrientation GetOrientation(std::vector<cv::Point> &contour, long startIndex, long size) {

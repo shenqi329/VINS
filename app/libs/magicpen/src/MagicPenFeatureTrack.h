@@ -13,6 +13,7 @@ public:
 	void Track(cv::Mat image_gray);
 
     float* buildProjectionMatrix(float nearp, float farp);
+	float* GetViewMatrix();
 
 	std::vector<cv::Point2f> GetROICorners();
 private:

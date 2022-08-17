@@ -86,6 +86,10 @@ float* MagicPenFeatureTrack::buildProjectionMatrix(float nearp, float farp) {
     return (float*)_projMatrix.data;
 }
 
+float* MagicPenFeatureTrack::GetViewMatrix() {
+	return (float*)_viewMatrix.data;
+}
+
 bool MagicPenFeatureTrack::Init(cv::Mat image_gray, cv::Rect roi) {
 
 	_pre_image_ROI_corners.resize(4);
@@ -127,9 +131,14 @@ bool MagicPenFeatureTrack::Init(cv::Mat image_gray, cv::Rect roi) {
 	_origin_feature_corners = _pre_feature_corners;
 	_origin_image = image_gray;
 
+	std::vector<cv::Point2f> obj_corners(4);
+	obj_corners[0] = cv::Point2f(0, 0);
+	obj_corners[1] = cv::Point2f((float)320, 0);
+	obj_corners[2] = cv::Point2f((float)320, (float)360);
+	obj_corners[3] = cv::Point2f(0, (float)360);
     for (size_t i = 0; i < 4; i++)
-        _origin_image_ROI_corners_3d[i] = cv::Point3f(_origin_image_ROI_corners[i].x/(float)image_gray.cols  - 0.5,
-                                                      -_origin_image_ROI_corners[i].y/(float)image_gray.rows + 0.5, 0);
+        _origin_image_ROI_corners_3d[i] = cv::Point3f(obj_corners[i].x/(float)image_gray.cols  - 0.5,
+                                                      -obj_corners[i].y/(float)image_gray.rows + 0.5, 0);
 
 	//ShowTrackFeature("show_track_image", _pre_feature_corners, _pre_image_ROI_corners);
 
