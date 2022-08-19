@@ -55,7 +55,14 @@ public class MagicPenDrawLineView extends View {
         paint.setColor(Color.BLUE);
         paint.setStrokeWidth(2);
 
+        int[] color = new int[4];
+        color[0] = Color.RED;
+        color[1] = Color.GREEN;
+        color[2] = Color.BLUE;
+        color[3] = Color.BLACK;
+
         for (int i = 0 ; i < _points.length; ++i) {
+            paint.setColor(color[i]);
             if (i == _points.length - 1) {
                 canvas.drawLine(_points[i].x, _points[i].y, _points[0].x, _points[0].y, paint);
             } else {

@@ -434,10 +434,6 @@ bool MagicPenMaLiang::Magic(cv::Mat image, int texture_side_width, int texture_s
 		if(!_feature_track.Init(image_gray, ROI)) {
 			return false;
 		}
-		std::vector<cv::Point2f> roi_corners = _feature_track.GetROICorners();
-		_pre_x = (roi_corners[1].x + roi_corners[2].x) / 2;
-		_pre_y = (roi_corners[1].y + roi_corners[2].y) / 2;
-		_pre_distance = MagicPenUtil::GetDistance(roi_corners[1], roi_corners[2]);
 
 		// 根据轮廓生成3D模型
 		cv::Mat image_rgba;
@@ -472,9 +468,7 @@ void MagicPenMaLiang::Draw(double timeStampSec) {
 #ifdef _WIN32
 	glClear(GL_COLOR_BUFFER_BIT);
 #endif
-	if(_feature_track.GetViewMatrix()) {
-		_render.Draw(&_3dModels, timeStampSec, _rotate_x, _rotate_y, _feature_track.GetViewMatrix());
-	}
+	_render.Draw(&_3dModels, timeStampSec, _rotate_x, _rotate_y, _feature_track.GetViewMatrix());
 }
 
 static TPPLOrientation GetOrientation(std::vector<cv::Point> &contour, long startIndex, long size) {

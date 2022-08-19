@@ -17,9 +17,10 @@ public:
 
 	std::vector<cv::Point2f> GetROICorners();
 private:
-	bool CompareWithFirstImage(cv::Mat cur_image_gray);
+	void run();
 	bool TrackWithCalcOpticalFlowPyrLK(cv::Mat image_gray);
-
+    void MatchOriginFrame(cv::Mat image_gray);
+	void GetOriginFrameROIKeyPoint(cv::Mat image_gray, cv::Rect roi);
 	void ShowTrackFeature(char * name, std::vector<cv::Point2f> feature_corners, std::vector<cv::Point2f> _image_ROI_corners);
 
 	cv::Mat _pre_image;
@@ -37,5 +38,10 @@ private:
 	cv::Mat_<float> _projMatrix;
     cv::Mat _viewMatrix;
 	bool _init = false;
+
+	cv::Ptr<cv::Feature2D> _feature_detector;
+	cv::Ptr<cv::DescriptorExtractor> _brief_extractor;
+	std::vector<cv::KeyPoint> _origin_key_point;
+	cv::Mat _origin_key_point_descs;
 };
 

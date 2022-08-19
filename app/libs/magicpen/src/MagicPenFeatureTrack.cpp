@@ -5,6 +5,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <iostream>
+#include <thread>
 
 #include "MagicPenFeatureTrack.h"
 #include "MagicPenUtil.h"
@@ -28,7 +29,7 @@ static void reduceVector(std::vector<cv::Point2f> &v, std::vector<uchar> status)
     v.resize(j);
 }
 
-static bool IsHomographyValid(cv::Mat homography, std::vector<cv::Point2f> &srcPoints, std::vector<cv::Point2f> &dstPoints) {
+static bool IsHomographyValid(cv::Mat homography, std::vector<cv::Point2f> &srcPoints, std::vector<cv::Point2f> &dstPoints, float maxDistance = 2.f, float max_out_scale = 0.6) {
 
 	std::vector<cv::Point2f> dstCmpPoints;
 
@@ -36,16 +37,16 @@ static bool IsHomographyValid(cv::Mat homography, std::vector<cv::Point2f> &srcP
 
 	int outline_count = 0;
 	for (size_t i = 0; i < srcPoints.size(); i++) {
-		if(MagicPenUtil::GetDistance(dstCmpPoints[i], dstPoints[i]) > 2.f) {
+		if(MagicPenUtil::GetDistance(dstCmpPoints[i], dstPoints[i]) > maxDistance) {
 			outline_count ++;
 		}
 	}
 
 	float out_scale = outline_count / (float)srcPoints.size();
 
-	std::cout << "out_scale:" << out_scale << std::endl;
+	//std::cout << "out_scale:" << out_scale << std::endl;
 
-	if(out_scale > 0.6) {
+	if(out_scale > max_out_scale) {
 		return false;
 	}
 	return true;
@@ -60,6 +61,13 @@ MagicPenFeatureTrack::MagicPenFeatureTrack() {
 
 	_camera_matrix = cv::Mat(3, 3, CV_64FC1, intrinsic);
 	_distortion_coefficients = cv::Mat(5,1,CV_64FC1, distCoeff);
+
+	_feature_detector = cv::FastFeatureDetector::create();
+
+	_brief_extractor = cv::ORB::create(200, 1, 0);
+	
+	std::thread track_thread(&MagicPenFeatureTrack::run, this);
+	track_thread.detach();
 }
 
 //float projMatrix[16];
@@ -87,7 +95,14 @@ float* MagicPenFeatureTrack::buildProjectionMatrix(float nearp, float farp) {
 }
 
 float* MagicPenFeatureTrack::GetViewMatrix() {
+	if(!_init) {
+		return nullptr;
+	}
 	return (float*)_viewMatrix.data;
+}
+
+void MagicPenFeatureTrack::run() {
+
 }
 
 bool MagicPenFeatureTrack::Init(cv::Mat image_gray, cv::Rect roi) {
@@ -136,11 +151,14 @@ bool MagicPenFeatureTrack::Init(cv::Mat image_gray, cv::Rect roi) {
 	obj_corners[1] = cv::Point2f((float)320, 0);
 	obj_corners[2] = cv::Point2f((float)320, (float)360);
 	obj_corners[3] = cv::Point2f(0, (float)360);
-    for (size_t i = 0; i < 4; i++)
+    for (size_t i = 0; i < 4; i++) {
         _origin_image_ROI_corners_3d[i] = cv::Point3f(obj_corners[i].x/(float)image_gray.cols  - 0.5,
                                                       -obj_corners[i].y/(float)image_gray.rows + 0.5, 0);
+	}
+	// ShowTrackFeature("show_track_image", _pre_feature_corners, _pre_image_ROI_corners);
 
-	//ShowTrackFeature("show_track_image", _pre_feature_corners, _pre_image_ROI_corners);
+	// get first frame key points (roi)
+	GetOriginFrameROIKeyPoint(roi_image, roi);
 
 	return true;
 }
@@ -152,40 +170,56 @@ std::vector<cv::Point2f> MagicPenFeatureTrack::GetROICorners() {
     return _pre_image_ROI_corners;
 }
 
+void MagicPenFeatureTrack::GetOriginFrameROIKeyPoint(cv::Mat roi_image, cv::Rect roi) {
+	_feature_detector->detect(roi_image, _origin_key_point);
+	_brief_extractor->compute(roi_image, _origin_key_point, _origin_key_point_descs);
+	for (size_t i = 0; i < _origin_key_point.size(); i++) {
+		_origin_key_point[i].pt.x += roi.x;
+		_origin_key_point[i].pt.y += roi.y;
+	}
+}
 
-bool MagicPenFeatureTrack::CompareWithFirstImage(cv::Mat cur_image_gray) {
+void MagicPenFeatureTrack::MatchOriginFrame(cv::Mat cur_image_gray) {
 
-	std::vector<uchar> status;
-	std::vector<float> err;
-	std::vector<cv::Point2f> cur_feature_corners;
+	std::vector<cv::KeyPoint> cur_keypoints;
+	_feature_detector->detect(cur_image_gray, cur_keypoints);
+	cv::Mat cur_descs;
+	_brief_extractor->compute(cur_image_gray, cur_keypoints, cur_descs);
 
-	cv::calcOpticalFlowPyrLK(_origin_image, cur_image_gray, _origin_feature_corners, cur_feature_corners, status, err, cv::Size(21,21), 3);
+	cv::BFMatcher matcher(cv::NORM_HAMMING);
+	std::vector<std::vector<cv::DMatch> > knn_matches;
+	matcher.knnMatch(cur_descs, _origin_key_point_descs, knn_matches, 2);
 
-	std::vector<cv::Point2f> origin_feature_corners = _origin_feature_corners;
+	std::vector<cv::DMatch> matches;
+	std::vector<cv::Point2f> origin_match_point;
+	std::vector<cv::Point2f> cur_match_point;
 
-	reduceVector(origin_feature_corners, status);
-	reduceVector(cur_feature_corners, status);
+	const int maxdist = cur_descs.cols * 0.5 * 8.;
 
-	if(_pre_feature_corners.size() < 10) {
-		return false;
+	for (size_t i = 0; i < knn_matches.size(); i++) {
+		if( knn_matches[i][0].distance <= maxdist
+			&& knn_matches[i][0].distance <= knn_matches[i][1].distance * 0.85) {
+
+			auto query_key_point = cur_keypoints[knn_matches[i][0].queryIdx];
+			cur_match_point.push_back(query_key_point.pt);
+
+			auto train_key_point = _origin_key_point[knn_matches[i][0].trainIdx];
+			origin_match_point.push_back(train_key_point.pt);
+		}
 	}
 
-	std::vector<cv::Point2f> cur_image_ROI_corners;
-	cv::Mat homography = cv::findHomography(origin_feature_corners, cur_feature_corners, cv::RANSAC, 5);
-	cv::perspectiveTransform( _origin_image_ROI_corners, cur_image_ROI_corners, homography);
-
-	if(IsHomographyValid(homography, origin_feature_corners, cur_feature_corners)) {
-		return false;
+	if(origin_match_point.size() > 10) {
+		cv::Mat homography = cv::findHomography(origin_match_point, cur_match_point, cv::RANSAC, 5);
+		if(IsHomographyValid(homography, origin_match_point, cur_match_point, 1.f, 0.5f)) {
+			std::vector<cv::Point2f> image_ROI_corners;
+			cv::perspectiveTransform(_origin_image_ROI_corners, image_ROI_corners, homography);
+			ShowTrackFeature("show_brief_extractor_track_origin_image", cur_match_point, image_ROI_corners);
+		}
 	}
-
-	std::cout << "track origin_feature_corners.size():" << origin_feature_corners.size()  << std::endl;
-
-	ShowTrackFeature("show_track_origin_image", cur_feature_corners, cur_image_ROI_corners);
-
-	return true;
 }
 
 bool MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray) {
+
 	std::vector<uchar> status;
 	std::vector<float> err;
 	std::vector<cv::Point2f> cur_feature_corners;
@@ -210,7 +244,6 @@ bool MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray)
 
 	cv::perspectiveTransform(_pre_image_ROI_corners, _pre_image_ROI_corners, homography);
 
-
     // camera pose
 	cv::Vec3d rvec, tvec;
 	cv::solvePnP(_origin_image_ROI_corners_3d, _pre_image_ROI_corners, _camera_matrix, _distortion_coefficients, rvec, tvec);
@@ -234,7 +267,7 @@ bool MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray)
 	viewMatrixf = cvToGl * viewMatrixf;
 	cv::transpose(viewMatrixf, viewMatrixf);
 	_viewMatrix = viewMatrixf;
-    std::cout << "viewMatrixf:" << viewMatrixf << std::endl;
+    // std::cout << "viewMatrixf:" << viewMatrixf << std::endl;
 
 	_pre_image = cur_image_gray;
 #if 1
@@ -252,7 +285,7 @@ bool MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray)
 	}
 #endif
 
-	std::cout << "track pre_feature_corners.size():" << _pre_feature_corners.size()  << std::endl;
+	// std::cout << "track pre_feature_corners.size():" << _pre_feature_corners.size()  << std::endl;
 	ShowTrackFeature("show_track_image", _pre_feature_corners, _pre_image_ROI_corners);
 
     return true;
@@ -261,14 +294,12 @@ bool MagicPenFeatureTrack::TrackWithCalcOpticalFlowPyrLK(cv::Mat cur_image_gray)
 void MagicPenFeatureTrack::Track(cv::Mat image_gray) {
 
 	if(!_init) {
-		//CompareWithFirstImage(image_gray);
 		return;
 	}
 
 	if(!TrackWithCalcOpticalFlowPyrLK(image_gray)) {
 		_init = false;
 	}
-	//CompareWithFirstImage(image_gray);
 }
 
 

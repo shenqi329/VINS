@@ -230,11 +230,21 @@ void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLim
 	} else {
 		if (timeStampSec - _init_time < 1.f ) {
 			_stand_model = glm::mat4(1.0f);
-			float angle =  ((_init_rotate_x) * (timeStampSec - _init_time) / 1.f);
+            float angle;
+            if(viewMatrix) {
+                angle = ((_init_rotate_x) * (timeStampSec - _init_time) / 1.f);
+            } else {
+                angle = -((90 + cameraRotateX) * (timeStampSec - _init_time) / 1.f);
+            }
 			_stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
 		} else {
             _stand_model = glm::mat4(1.0f);
-            float angle =  (_init_rotate_x);
+            float angle;
+            if(viewMatrix) {
+                angle =  (_init_rotate_x);
+            } else {
+                angle = -(90 + cameraRotateX);
+            }
             _stand_model = glm::rotate(_stand_model, glm::radians(angle), glm::vec3(1.0f, 0.0f, 0.0f));
         }
 	}
@@ -313,32 +323,26 @@ void MagicPenRender::Draw(MagicPen3DModel *p3DModel, MagicPen3DLimbModel *p3DLim
     // camera/view transformation
     float angle = 0;//timeStampSec * 20;
 
-#if 0
-#ifdef ANDROID
-    glm::vec3 up = glm::vec3(0.0f, -1.0f, 0.0f);
-#else
-    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-#endif
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), up);
-    std::cout << "glm::lookAt" << std::endl;
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            std::cout << view[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-#else
-    glm::mat4 view = glm::mat4(viewMatrix[0],viewMatrix[1],viewMatrix[2],viewMatrix[3],
-              viewMatrix[4],viewMatrix[5],viewMatrix[6],viewMatrix[7],
-              viewMatrix[8],viewMatrix[9],viewMatrix[10],viewMatrix[11],
-              viewMatrix[12],viewMatrix[13],viewMatrix[14],viewMatrix[15]);
-
-#ifdef ANDROID
-    glm::mat4 flipY = glm::mat4(1.0f);
-    flipY[1][1] = -1.0f;
-    view = flipY * view;
-#endif
-#endif
+    glm::mat4 view;
+	if(!viewMatrix) {
+	#ifdef ANDROID
+		glm::vec3 up = glm::vec3(0.0f, -1.0f, 0.0f);
+	#else
+		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+	#endif
+        view = glm::lookAt(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(0.0f, 0.0f, 0.0f), up);
+        glUniformMatrix4fv(glGetUniformLocation(_programObject, "view"), 1, GL_FALSE, &view[0][0]);
+	} else {
+		view = glm::mat4(viewMatrix[0],viewMatrix[1],viewMatrix[2],viewMatrix[3],
+				  viewMatrix[4],viewMatrix[5],viewMatrix[6],viewMatrix[7],
+				  viewMatrix[8],viewMatrix[9],viewMatrix[10],viewMatrix[11],
+				  viewMatrix[12],viewMatrix[13],viewMatrix[14],viewMatrix[15]);
+	#ifdef ANDROID
+		glm::mat4 flipY = glm::mat4(1.0f);
+		flipY[1][1] = -1.0f;
+		view = flipY * view;
+	#endif
+	}
     glUniformMatrix4fv(glGetUniformLocation(_programObject, "view"), 1, GL_FALSE, &view[0][0]);
 
     glm::mat4 model;

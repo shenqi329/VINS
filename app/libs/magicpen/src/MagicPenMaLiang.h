@@ -68,12 +68,6 @@ private:
     float _rotate_x = 0;
     float _rotate_y = 0;
 
-	float _pre_x;
-	float _pre_y;
-	float _pre_distance;
-
-	OffsetCache _offsetCache;
-
 	MagicPenFeatureTrack _feature_track;
 };
 
